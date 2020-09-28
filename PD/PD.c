@@ -15,6 +15,7 @@
 #define DEFAULT_IP_AS "127.0.0.1"
 #define DEFAULT_IP_PD "127.0.0.1"
 
+#define max(A,B) ((A)>=(B)?(A):(B))
 
 int fd,errcode;
 ssize_t n;
@@ -30,6 +31,14 @@ int main(int argc, char *argv[]){
 	char portAS[8] = DEFAULT_PORT_AS;
 	char ipPD[18] = DEFAULT_IP_PD ;
 	char ipAS[18] = DEFAULT_IP_AS;
+	
+	// select vars
+	/*
+	int fd,newfd,afd=0;
+	fd_set rfds;
+	enum {idle,busy} state;
+	int maxfd,counter;
+	*/
 	
 	if( argc == 1){
 		printf("The PDIP argument is required!\n");
@@ -102,8 +111,65 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 
-    while(fgets(buffer, 128 , stdin)){
+    char *token_list[20]; 
+	
+	char user[6] ="";
+	char pass[9] ="";
 
+    while(1){
+		
+		char msg[128] = "";
+		
+
+		fgets(buffer, 128 , stdin);
+		buffer[strlen(buffer)-1]='\0';
+
+		
+		char* token = strtok(buffer, " ");
+		int num_tokens = 0;
+		
+		
+		while (token != NULL) { 
+			token_list[num_tokens] = token;
+			num_tokens++;
+			token = strtok(NULL, " ");
+		} 
+		
+
+		if(strcmp(token_list[0],"reg")==0){
+			
+			strcat(msg,"REG ");
+			strcat(msg,token_list[1]);
+			strcat(msg," ");
+			strcat(msg,token_list[2]);
+			strcat(msg," ");
+			strcat(msg,ipPD);
+			strcat(msg," ");
+			strcat(msg,portPD);
+			strcat(msg,"\n");
+						
+			strcpy(user,token_list[1]);
+			strcpy(pass,token_list[2]);
+			
+			printf("1-> %s %s",user,token_list[1]);
+
+			
+
+		}else if(strcmp(token_list[0],"exit")==0){
+
+
+			printf("2-> %s",user);
+			
+			strcat(msg,"UNR ");
+			strcat(msg,user);
+			strcat(msg," ");
+			strcat(msg,pass);
+			strcat(msg,"\n");
+			}	
+
+		printf("MSG: %s",msg);
+			
+			
 		fd=socket(AF_INET,SOCK_DGRAM,0);
 		if(fd==-1) exit(1);
 		
@@ -113,7 +179,7 @@ int main(int argc, char *argv[]){
 		
 		errcode = getaddrinfo(ipAS,portAS,&hints,&res);
 		
-		n=sendto(fd,"REG 71015 password 127.0.0.1 57011\n",35,0,res->ai_addr,res->ai_addrlen);
+		n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
 		
 		addrlen = sizeof(addr);
 		n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
@@ -124,8 +190,4 @@ int main(int argc, char *argv[]){
 		close(fd);
 	}
 	return 0;
-	
-	
-	
-	
 }
