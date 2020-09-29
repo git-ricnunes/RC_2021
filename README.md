@@ -14,4 +14,4 @@ Correr o Personal device (exemplo):
 >exit
 
 ##### TODO 
--> servidor udp para receber para autenticar users via AS.
+-> servidor udp para receber mensagens de autenticação de users via AS.
