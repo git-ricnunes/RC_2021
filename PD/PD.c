@@ -22,7 +22,6 @@ ssize_t n;
 socklen_t addrlen;
 struct addrinfo hints,*res;
 struct sockaddr_in addr;
-char buffer[128];
 
 int main(int argc, char *argv[]){
 	
@@ -115,26 +114,25 @@ int main(int argc, char *argv[]){
 	
 	char user[6] ="";
 	char pass[9] ="";
+	int _exit =0;
 
     while(1){
 		
 		char msg[128] = "";
+		char buffer[128];
 		
-
+		printf("Enter your command (reg or exit):\n");
 		fgets(buffer, 128 , stdin);
 		buffer[strlen(buffer)-1]='\0';
 
-		
 		char* token = strtok(buffer, " ");
 		int num_tokens = 0;
-		
 		
 		while (token != NULL) { 
 			token_list[num_tokens] = token;
 			num_tokens++;
 			token = strtok(NULL, " ");
 		} 
-		
 
 		if(strcmp(token_list[0],"reg")==0){
 			
@@ -149,26 +147,18 @@ int main(int argc, char *argv[]){
 			strcat(msg,"\n");
 						
 			strcpy(user,token_list[1]);
-			strcpy(pass,token_list[2]);
-			
-			printf("1-> %s %s",user,token_list[1]);
-
-			
+			strcpy(pass,token_list[2]);		
 
 		}else if(strcmp(token_list[0],"exit")==0){
-
-
-			printf("2-> %s",user);
 			
 			strcat(msg,"UNR ");
 			strcat(msg,user);
 			strcat(msg," ");
 			strcat(msg,pass);
 			strcat(msg,"\n");
-			}	
-
-		printf("MSG: %s",msg);
 			
+			_exit=1;
+		}	
 			
 		fd=socket(AF_INET,SOCK_DGRAM,0);
 		if(fd==-1) exit(1);
@@ -188,6 +178,8 @@ int main(int argc, char *argv[]){
 		
 		freeaddrinfo(res);
 		close(fd);
+		
+		if(_exit==1) return 0;
 	}
 	return 0;
 }
