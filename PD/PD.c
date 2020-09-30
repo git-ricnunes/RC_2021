@@ -5,6 +5,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 
@@ -17,8 +18,8 @@
 
 #define max(A,B) ((A)>=(B)?(A):(B))
 
-int fd,errcode;
-ssize_t n;
+int fd,fds,errcode;
+ssize_t n,ns;
 socklen_t addrlen;
 struct addrinfo hints,*res;
 struct sockaddr_in addr;
@@ -31,13 +32,10 @@ int main(int argc, char *argv[]){
 	char ipPD[18] = DEFAULT_IP_PD ;
 	char ipAS[18] = DEFAULT_IP_AS;
 	
-	// select vars
-	/*
-	int fd,newfd,afd=0;
-	fd_set rfds;
-	enum {idle,busy} state;
-	int maxfd,counter;
-	*/
+	char *token_list[20];
+	char user[6] ="";
+	char pass[9] ="";
+	int _exit =0;
 	
 	if( argc == 1){
 		printf("The PDIP argument is required!\n");
@@ -109,77 +107,123 @@ int main(int argc, char *argv[]){
 		printf("Erros in arguments!\n");
 		return -1;
 	}
-
-    char *token_list[20]; 
 	
-	char user[6] ="";
-	char pass[9] ="";
-	int _exit =0;
+	fd_set rfds;
+	int maxfd,retval;
+	if((fds=socket(AF_INET,SOCK_DGRAM,0)==-1))exit(1);//error
+	
+	memset(&hints,0,sizeof hints);
+  hints.ai_family=AF_INET;
+  hints.ai_socktype=SOCK_DGRAM;
+  hints.ai_flags=AI_PASSIVE;
+  
+  errcode=getaddrinfo(NULL,DEFAULT_PORT_PD,&hints,&res);
+  if(errcode!=0) exit(1);
 
+  n=bind(fds,res->ai_addr,res->ai_addrlen);
+	if(ns==-1) { printf("%ld",ns);exit(1);}
+ 
+	addrlen=sizeof(addr);
+
+	memset(&hints,0,sizeof hints);
+	hints.ai_family=AF_INET;
+	hints.ai_socktype=SOCK_DGRAM;
+		
+	errcode = getaddrinfo(ipAS,portAS,&hints,&res);
+	fd=socket(AF_INET,SOCK_DGRAM,0);
+	
+ 
     while(1){
 		
-		char msg[128] = "";
-		char buffer[128];
-		
-		printf("Enter your command (reg or exit):\n");
-		fgets(buffer, 128 , stdin);
-		buffer[strlen(buffer)-1]='\0';
+			FD_ZERO(&rfds);
+			FD_SET(0,&rfds);
+			FD_SET(fd,&rfds);
+			FD_SET(fds,&rfds);
+			maxfd = max(fd,fds);
+			
+			char msg[128] = "";
+			char buffer[128];
+			
+	
 
-		char* token = strtok(buffer, " ");
-		int num_tokens = 0;
-		
-		while (token != NULL) { 
-			token_list[num_tokens] = token;
-			num_tokens++;
-			token = strtok(NULL, " ");
-		} 
+			retval=select(maxfd+1,&rfds,(fd_set *)NULL,(fd_set *)NULL,(struct timeval *) NULL);
+			if(maxfd<=0)exit(1);
 
-		if(strcmp(token_list[0],"reg")==0){
-			
-			strcat(msg,"REG ");
-			strcat(msg,token_list[1]);
-			strcat(msg," ");
-			strcat(msg,token_list[2]);
-			strcat(msg," ");
-			strcat(msg,ipPD);
-			strcat(msg," ");
-			strcat(msg,portPD);
-			strcat(msg,"\n");
-						
-			strcpy(user,token_list[1]);
-			strcpy(pass,token_list[2]);		
-
-		}else if(strcmp(token_list[0],"exit")==0){
-			
-			strcat(msg,"UNR ");
-			strcat(msg,user);
-			strcat(msg," ");
-			strcat(msg,pass);
-			strcat(msg,"\n");
-			
-			_exit=1;
-		}	
-			
-		fd=socket(AF_INET,SOCK_DGRAM,0);
-		if(fd==-1) exit(1);
-		
-		memset(&hints,0,sizeof hints);
-		hints.ai_family=AF_INET;
-		hints.ai_socktype=SOCK_DGRAM;
-		
-		errcode = getaddrinfo(ipAS,portAS,&hints,&res);
-		
-		n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
-		
-		addrlen = sizeof(addr);
-		n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
-		
-		write(1,"echo: ",6); write(1,buffer,n);
-		
-		freeaddrinfo(res);
-		close(fd);
-		
-		if(_exit==1) return 0;
-	}
+  		
+			 
+			for(;retval;retval--){
+  			if(FD_ISSET(0,&rfds))
+  			{
+  				
+  				fgets(buffer, 128 , stdin);
+  				buffer[strlen(buffer)-1]='\0';
+  
+  				char* token = strtok(buffer, " ");
+  				int num_tokens = 0;
+  				
+  				while (token != NULL) { 
+  					token_list[num_tokens] = token;
+  					num_tokens++;
+  					token = strtok(NULL, " ");
+  				} 
+  
+  				if(strcmp(token_list[0],"reg")==0){
+  					
+  					strcat(msg,"REG ");
+  					strcat(msg,token_list[1]);
+  					strcat(msg," ");
+  					strcat(msg,token_list[2]);
+  					strcat(msg," ");
+  					strcat(msg,ipPD);
+  					strcat(msg," ");
+  					strcat(msg,portPD);
+  					strcat(msg,"\n");
+  								
+  					strcpy(user,token_list[1]);
+  					strcpy(pass,token_list[2]);		
+  
+  				}else if(strcmp(token_list[0],"exit")==0){
+  					
+  					strcat(msg,"UNR ");
+  					strcat(msg,user);
+  					strcat(msg," ");
+  					strcat(msg,pass);
+  					strcat(msg,"\n");
+					
+					_exit=1;
+  				}
+  	
+  					
+  				
+  				n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
+  
+  			} else if(FD_ISSET(fd,&rfds)){	
+  			
+  				addrlen = sizeof(addr);
+  				n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+  					
+ 				 write(1,buffer,n);
+  					
+  				if(_exit==1) return 0;
+  			
+  			
+  			} else if(FD_ISSET(fds,&rfds)){	
+  				
+  				printf("Send to AS\n");
+  
+  				ns=recvfrom(fds,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+  				if(ns==-1) exit(1);
+  
+  				write(1,buffer,ns);
+  
+  				ns=sendto(fds,buffer,n,0,(struct sockaddr*) &addr,addrlen);
+   			  if(ns==-1) exit(1);
+  			}
+  
+  				
+  				
+  			}
+      }
+	
 	return 0;
 }
