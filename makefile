@@ -1,5 +1,12 @@
 # makefile
+CC = gcc
+CFLAGS = -Wall -g
+LDFLAGS =
 
 all:
-	gcc -Wall -g -o pd PD/PD.c 
-	gcc -Wall -g -o User User/User.c -lm
+	$(CC) $(CDFLAGS) -o pd PD/PD.c 
+	$(CC) $(CDFLAGS) -o User User/User.c
+pd: 
+	$(CC) $(CDFLAGS) -o pd PD/PD.c
+User:
+	$(CC) $(CDFLAGS) -o User User/User.c
