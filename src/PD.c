@@ -195,45 +195,38 @@ int main(int argc, char *argv[]){
   					strcat(msg,"\n");
 				} 
         
-        printf("message: %s",msg);
   				n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
   
 				} else if(FD_ISSET(fd,&rfds)){			
         
-          char op[4];
-          char status[4];
-        
-					n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
-						
-					write(1,buffer,n);
-     	    
-          sscanf( buffer, "%s %s", op, status);    
-          
-          if(strcmp(op,"RUN")==0){
+				  char op[4];
+				  char status[4];
+				  
+				  n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+				  write(1,buffer,n);
+				  sscanf( buffer, "%s %s", op, status);    
+				  
+				  if(strcmp(op,"RUN")==0){
   						if(strcmp(status,"OK")==0)
-                return 0;
-                
-					} else {
-           	strcat(msg,"ERR");
-						strcat(msg,"\n");
-          }		
-					
-					
-				} else if(FD_ISSET(fds,&rfds)){
-        
-          char op[4];
-          char userAs[7];			
-          char onTimeCode[5];	
-          char fileOp[2];
-          char fileName[100];	
-					addrlen = sizeof(addr);
-
-					ns=recvfrom(fds,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
-					if(ns==-1) exit(1);
-
-					write(1,buffer,ns);
-                  
-         sscanf( buffer,"%s %s %s %s %s", op,userAs,onTimeCode,fileOp,fileName); 
+							return 0;
+						} else {
+							strcat(msg,"ERR");
+							strcat(msg,"\n");
+						}		
+					} else if(FD_ISSET(fds,&rfds)){
+						char op[4];
+						char userAs[7];
+						char onTimeCode[5];
+						char fileOp[2];
+						char fileName[100];	
+						
+						addrlen = sizeof(addr);
+						ns=recvfrom(fds,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+						if(ns==-1) exit(1);
+						
+						write(1,buffer,ns);
+						
+						sscanf( buffer,"%s %s %s %s %s", op,userAs,onTimeCode,fileOp,fileName); 
                 
 					if(strcmp(op,"VLC")==0){
   						if(strcmp(userAs,user)==0){                                   
@@ -241,16 +234,15 @@ int main(int argc, char *argv[]){
     						strcat(msg,"OK");
     						strcat(msg,"\n");
     						
-   					  } else {	
+						} else {	
     						strcat(msg,"RVC ");
     						strcat(msg,"NOK");
     						strcat(msg,"\n");
   						}
 					} else {
-           	strcat(msg,"ERR");
+						strcat(msg,"ERR");
 						strcat(msg,"\n");
-          }
-	  
+						}	
 					ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);
                                                   
 					if(ns==-1){
