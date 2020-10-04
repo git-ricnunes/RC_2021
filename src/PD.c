@@ -27,8 +27,8 @@ struct sockaddr_in addr;
 int main(int argc, char *argv[]){
 	
 	// Variables
-	char portPD[8] = DEFAULT_PORT_PD;
-	char portAS[8] = DEFAULT_PORT_AS;
+	char portPD[6] = DEFAULT_PORT_PD;
+	char portAS[6] = DEFAULT_PORT_AS;
 	char ipPD[18] = DEFAULT_IP_PD ;
 	char ipAS[18] = DEFAULT_IP_AS;
  
@@ -160,7 +160,7 @@ int main(int argc, char *argv[]){
 			maxfd = max(fd,fds);
 			   
 			// reset the message buffers in each iterarion
-      char msg[128];
+      char msg[128]="";
       char buffer[128];
 			
 			retval=select(maxfd+1,&rfds,(fd_set *)NULL,(fd_set *)NULL,(struct timeval *) NULL);
@@ -194,6 +194,8 @@ int main(int argc, char *argv[]){
   					strcat(msg,pass);
   					strcat(msg,"\n");
 				} 
+        
+        printf("message: %s",msg);
   				n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
   
 				} else if(FD_ISSET(fd,&rfds)){			
