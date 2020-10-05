@@ -110,9 +110,6 @@ int main(int argc, char *argv[]){
 		return -1;
 	}
 	
-	for(int i = 0 ; i< argc; i++)
-		
-	
 	addrlen=sizeof(addr);
 	
 	// Create the udp server socket
