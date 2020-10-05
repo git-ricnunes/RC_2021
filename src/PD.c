@@ -108,7 +108,10 @@ int main(int argc, char *argv[]){
 	} else {
 		printf("Erros in arguments!\n");
 		return -1;
-	}		
+	}
+	
+	for(int i = 0 ; i< argc; i++)
+		
 	
 	addrlen=sizeof(addr);
 	
@@ -165,7 +168,7 @@ int main(int argc, char *argv[]){
  
 			for(;retval;retval--){
       
-  			if(FD_ISSET(0,&rfds))
+  			if(FD_ISSET(0,&rfds))  
   			{
         fgets(buffer, 128 , stdin);
         
@@ -190,9 +193,10 @@ int main(int argc, char *argv[]){
   					strcat(msg," ");
   					strcat(msg,pass);
   					strcat(msg,"\n");
-				} 
+				}else{
+          continue;
+          } 
         
-        printf("message: %s",msg);
   				n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
   
 				} else if(FD_ISSET(fd,&rfds)){			
