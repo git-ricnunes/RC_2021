@@ -1,23 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <string.h>
 #define DEFAULT_ASIP "127.0.0.1"
 #define DEFAULT_ASPORT "58011"
 #define DEFAULT_FSIP "127.0.0.1"
 #define DEFAULT_FSPORT "59011"
+#define BUFFER_SIZE 128
+#define MAX_TOKENS 4
+
+#include <errno.h>
 
 int fd,errcode;
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo hints,*res;
 struct sockaddr_in addr;
-char buffer[128];
+char buffer[BUFFER_SIZE];
 
 int main(int argc, char *argv[]){
 
@@ -39,8 +44,49 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	while(fgets(buffer, 128, stdin)){
-		
+	char * token_list[MAX_TOKENS];
+	int num_tokens;
+
+	while(1){
+
+		fgets(buffer, BUFFER_SIZE, stdin);
+
+		char msg[BUFFER_SIZE] = "";
+		char * token = strtok(buffer, " \n");
+
+		while (token != NULL){
+			token_list[num_tokens++] = token;
+			token = strtok(NULL, " \n");
+		}
+
+		if (!strcmp(token_list[0], "login")){
+			sprintf(msg, "LOG %s %s\n", token_list[1], token_list[2]);
+		}
+		else if (!strcmp(token_list[0], "req")){
+
+		}
+		else if (!strcmp(token_list[0], "val")){
+
+		}
+		else if (!strcmp(token_list[0], "list") || !strcmp(token_list[0], "l")){
+
+		}
+		else if (!strcmp(token_list[0], "retrieve") || !strcmp(token_list[0], "r")){
+
+		}
+		else if (!strcmp(token_list[0], "upload") || !strcmp(token_list[0], "u")){
+
+		}
+		else if (!strcmp(token_list[0], "delete") || !strcmp(token_list[0], "d")){
+
+		}
+		else if (!strcmp(token_list[0], "remove") || !strcmp(token_list[0], "x")){
+
+		}
+		else if (!strcmp(token_list[0], "exit")){
+
+		}
+
 		fd=socket(AF_INET,SOCK_STREAM,0);
 		if(fd==-1) exit(1);
 		
@@ -49,12 +95,19 @@ int main(int argc, char *argv[]){
 		hints.ai_socktype=SOCK_STREAM;
 		
 		errcode = getaddrinfo(ipAS,portAS,&hints,&res);
-		
+		if(errcode!=0) {
+			fprintf(stderr, "%s\n", gai_strerror(errcode));
+			exit(1);
+		}
+
 		n=connect(fd,res->ai_addr,res->ai_addrlen);
+		if(n==-1) exit(1);
 		
-		n=write(fd,buffer,sizeof(buffer));
+		n=write(fd,msg,strlen(msg));
+		if(n==-1) exit(1);
 		
 		n=read(fd,buffer,sizeof(buffer));
+		if(n==-1) exit(1);
 		
 		write(1,"echo: ",6); write(1,buffer,n);
 		
