@@ -12,6 +12,8 @@
 #define DEFAULT_ASPORT "58011"
 #define DEFAULT_FSIP "127.0.0.1"
 #define DEFAULT_FSPORT "59011"
+#define IP_SIZE 64
+#define PORT_SIZE 16
 #define BUFFER_SIZE 128
 #define MAX_TOKENS 4
 
@@ -26,19 +28,23 @@ char buffer[BUFFER_SIZE];
 
 int main(int argc, char *argv[]){
 
-	char ipAS[18] = DEFAULT_ASIP, portAS[8] = DEFAULT_ASPORT, ipFS[18] = DEFAULT_FSIP, portFS[8] = DEFAULT_FSPORT;
+	char ipAS[IP_SIZE] = DEFAULT_ASIP, portAS[PORT_SIZE] = DEFAULT_ASPORT, ipFS[IP_SIZE] = DEFAULT_FSIP, portFS[PORT_SIZE] = DEFAULT_FSPORT;
 
 	for (int i = 1; i < argc; i++){
 		if (argv[i][0] != '-' || strlen(argv[i]) != 2) continue;
 		switch (argv[i][1]){
 			case 'n':
 				strcpy(ipAS, argv[i+1]);
+				break;
 			case 'p':
 				strcpy(portAS, argv[i+1]);
+				break;
 			case 'm':
 				strcpy(ipFS, argv[i+1]);
+				break;
 			case 'q':
 				strcpy(portFS, argv[i+1]);
+				break;
 			default: /* invalid flag */
 				continue;
 		}
@@ -95,10 +101,7 @@ int main(int argc, char *argv[]){
 		hints.ai_socktype=SOCK_STREAM;
 		
 		errcode = getaddrinfo(ipAS,portAS,&hints,&res);
-		if(errcode!=0) {
-			fprintf(stderr, "%s\n", gai_strerror(errcode));
-			exit(1);
-		}
+		if(errcode!=0) exit(1);
 
 		n=connect(fd,res->ai_addr,res->ai_addrlen);
 		if(n==-1) exit(1);
