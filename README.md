@@ -30,7 +30,7 @@ make
 >./AS [-p ASport] [-v]
 
 ###### ASport é a porta à escuta para comunicação UDP.
-######  flag v que activa o modo verboso do servidor de autenticação onde é possivel ver a trocas de mensagens entre outras componentes e o servidor AS.
+######  flag v que activa o modo verboso do servidor AS.
 ### Exemplos chamada:
 >./AS
 
