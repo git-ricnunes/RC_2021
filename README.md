@@ -1,4 +1,4 @@
-# RC 2021 - GRUPO 11
+# RC 2020/2021 - GRUPO 11
 
 #### Manuel Gomes Carvalho 87237
 #### Miguel Gomes Coelho 89509
