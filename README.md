@@ -12,7 +12,7 @@ make
 ./pd PDIP [-d PDport] [-n ASIP] [-p ASport]
 ###### PDIP é o IP onde o programa está a correr.
 ###### PDport é a porta do psersonal device à escuta para comunicação UDP.
-###### ASIP é p hostname do servidor de autenticação.
+###### ASIP é o hostname do servidor de autenticação.
 ###### ASport é a porta à escuta para comunicação UDP do servidor de autenticação.
 
 ### Exemplos chamada:
@@ -38,6 +38,8 @@ make
 
 >./AS -v -p 58111
 	  
-## TODO 
-### ->Comunicação entre o AS e o FS.
-### ->Testes com outras componentes.
+### TODO 
+#### ->Comunicação entre o AS e o FS.
+#### ->Novos desenvolvimentos para o User
+#### ->Servidor FS
+#### ->Testes com outras componentes.
