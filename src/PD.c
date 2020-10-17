@@ -42,12 +42,9 @@ int main(int argc, char *argv[]){
 	if( argc == 1){
 		printf("The PDIP argument is required!\n");
 		return -1;
-	}
-	else if(argc == 2){
-		stpcpy(argv[1],ipPD);
-	
-	}
-	else if(argc == 4){
+	}else if(argc == 2){
+		stpcpy(ipPD,argv[1]);
+	}else if(argc == 4){
 		
 		stpcpy(ipPD,argv[1]);
 
@@ -58,8 +55,7 @@ int main(int argc, char *argv[]){
 		}else if(strcmp(argv[2],"-p") ==0){
 			stpcpy(portAS,argv[3]);
 		}
-	}
-	else if(argc == 6){	
+	}else if(argc == 6){	
 	
 		stpcpy(ipPD,argv[1]);
 
@@ -78,8 +74,7 @@ int main(int argc, char *argv[]){
 		}else if(strcmp(argv[4],"-p") ==0){
 			stpcpy(portAS,argv[5]);
 		}
-	}
-	else if(argc == 8){
+	}else if(argc == 8){
 		stpcpy(ipPD,argv[1]);
 		
 		if(strcmp(argv[2],"-d") ==0){
@@ -105,10 +100,13 @@ int main(int argc, char *argv[]){
 		}else if(strcmp(argv[6],"-p") ==0){
 			stpcpy(portAS,argv[7]);
 		}
-	} else {
+	}else {
 		printf("Erros in arguments!\n");
 		return -1;
 	}
+	
+	for(int i = 0 ; i< argc; i++)
+		
 	
 	addrlen=sizeof(addr);
 	
@@ -157,8 +155,8 @@ int main(int argc, char *argv[]){
 			maxfd = max(fd,fds);
 			   
 			// reset the message buffers in each iterarion
-      char msg[128]="";
-      char buffer[128];
+		  char msg[128]="";
+		  char buffer[128];
 			
 			retval=select(maxfd+1,&rfds,(fd_set *)NULL,(fd_set *)NULL,(struct timeval *) NULL);
 			if(maxfd<=0)exit(1);
@@ -167,11 +165,11 @@ int main(int argc, char *argv[]){
       
   			if(FD_ISSET(0,&rfds))  
   			{
-        fgets(buffer, 128 , stdin);
+				fgets(buffer, 128 , stdin);
         
-        char op[4];
+				char op[4];
         
-          sscanf( buffer, "%s %s %s", op, user, pass );
+				sscanf( buffer, "%s %s %s", op, user, pass );
 
   				if(strcmp(op,"reg")==0){
   					
@@ -191,39 +189,37 @@ int main(int argc, char *argv[]){
   					strcat(msg,pass);
   					strcat(msg,"\n");
 				}else{
-          continue;
-          } 
+				  continue;
+				  } 
         
   				n=sendto(fd,msg,strlen(msg),0,res->ai_addr,res->ai_addrlen);
   
 				} else if(FD_ISSET(fd,&rfds)){			
         
-          char op[4];
-          char status[4];
-        
-					n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
-						
-					write(1,buffer,n);
-     	    
-          sscanf( buffer, "%s %s", op, status);    
-          
-          if(strcmp(op,"RUN")==0){
+				  char op[4];
+				  char status[4];
+				  
+				  n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+				  
+				  write(1,buffer,n);
+				  sscanf( buffer, "%s %s", op, status);
+				  
+				  if(strcmp(op,"RUN")==0){
   						if(strcmp(status,"OK")==0)
-                return 0;
-                
-					} else {
-           	strcat(msg,"ERR");
-						strcat(msg,"\n");
-          }		
-					
-					
+							
+						return 0;
+						} else {
+							strcat(msg,"ERR");
+							strcat(msg,"\n");
+							}
+							
 				} else if(FD_ISSET(fds,&rfds)){
         
-          char op[4];
-          char userAs[7];			
-          char onTimeCode[5];	
-          char fileOp[2];
-          char fileName[100];	
+					char op[4];
+					char userAs[7];			
+					char onTimeCode[5];	
+					char fileOp[2];
+					char fileName[100];	
 					addrlen = sizeof(addr);
 
 					ns=recvfrom(fds,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
@@ -231,7 +227,7 @@ int main(int argc, char *argv[]){
 
 					write(1,buffer,ns);
                   
-         sscanf( buffer,"%s %s %s %s %s", op,userAs,onTimeCode,fileOp,fileName); 
+					sscanf( buffer,"%s %s %s %s %s", op,userAs,onTimeCode,fileOp,fileName); 
                 
 					if(strcmp(op,"VLC")==0){
   						if(strcmp(userAs,user)==0){                                   
@@ -245,9 +241,9 @@ int main(int argc, char *argv[]){
     						strcat(msg,"\n");
   						}
 					} else {
-           	strcat(msg,"ERR");
+						strcat(msg,"ERR");
 						strcat(msg,"\n");
-          }
+						}
 	  
 					ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);
                                                   
