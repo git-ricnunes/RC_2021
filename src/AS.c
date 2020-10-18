@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
+#include <time.h>
 
 #include <netinet/in.h>
 #define DEFAULT_PORT_AS "58011"
@@ -32,7 +33,10 @@ struct request_st
 {
     char RID[5];
     char VC[5];
-	int TID;
+	char op[1];
+	char fileName[60];
+	char TID[10];
+	int vcUsed;
 };
 
 struct user_st
@@ -68,18 +72,46 @@ int checkFileOp(char *opOut,char *argument){
 	
 }
 
-void structChecker(struct user_st *arr_user){
+int checkOpWithFile(char *opOut){
 	
-	 printf("Struct checker: %d\n",numUsers);
+	int result = 0;
+	char fileOps[3]={'R','U','D'};
+	
+	for(int i=0;i<3;i++)
+		if(opOut[0]==fileOps[i]){
+			result=1;
+			break;
+		}
+	
+	return result;
+	
+}
+
+void structChecker(struct user_st *arr_user){
+	 printf("############################## DEBUG ##############################\n");
+	 printf("Authentication Database:\n");
+	 printf("Number of users: %d\n",numUsers+1);
 	 for(int j = 0; j <= numUsers;j++){
-		 printf("---> user:%s pass:%s PD_ip:%s PD_port:%s isLogged?:%d numReques:%d\n",arr_user[j].uid,arr_user[j].pass,arr_user[j].pdIp,arr_user[j].pdPort,arr_user[j].isLogged,arr_user[j].numreq);
+		 printf("---> user:%s pass:%s PD_ip:%s PD_port:%s isLogged?:%d numReques:%d\n",
+		 arr_user[j].uid,
+		 arr_user[j].pass,
+		 arr_user[j].pdIp,
+		 arr_user[j].pdPort,
+		 arr_user[j].isLogged,
+		 arr_user[j].numreq+1);
 		 if(arr_user[j].numreq>=0){
-			printf("\tNum of Requests: %d\n",arr_user[j].numreq);
+			printf("\tNum of Requests: %d\n",arr_user[j].numreq+1);
 			for(int k = 0; k <= arr_user[j].numreq;k++){
-				printf("\t->RID:%s VC:%s TID:%d \n",arr_user[j].arr_req[k].RID,arr_user[j].arr_req[k].VC,arr_user[j].arr_req[k].TID);
+				printf("\t->RID:%s VC:%s OP:%c filename:%s TID:%s \n",
+				arr_user[j].arr_req[k].RID,
+				arr_user[j].arr_req[k].VC,
+				arr_user[j].arr_req[k].op[0],
+				arr_user[j].arr_req[k].fileName,
+				arr_user[j].arr_req[k].TID);
 			}
 		 }
 	 }
+	 printf("############################## END DEBUG ##########################\n");
 
 }
 
@@ -106,6 +138,13 @@ int checkReqErr(char *tcp_buffer){
 }
 
 int main(int argc, char *argv[]){
+	
+	// Log file
+	//FILE *fp;
+	//char buff[5000];
+	//fp = fopen("../../../web/RC_LOG_AS.log", "w+");
+
+	srand(time(NULL)); 
 	
 	
 	char portAS[6]=DEFAULT_PORT_AS;
@@ -233,7 +272,7 @@ int main(int argc, char *argv[]){
 			for(;retval;retval--){
 				
 			if(FD_ISSET(fds,&rfds)){
-					//server udp
+				//server udp
                    
 				  char op[5]="";
 				  char user[6]="";
@@ -243,8 +282,10 @@ int main(int argc, char *argv[]){
 				  
 				  ns=recvfrom(fds,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
 				  
-				  if(verboseMode==1)	
+				  if(verboseMode==1){	
 					  printf("---> got this by udp connection: %s",buffer);
+					  //fputs(buffer, fp);
+					}
                                
 				  sscanf(buffer,"%s %s %s %s %s", op, user, pass,pdIP,pdPort);              
                            
@@ -277,9 +318,7 @@ int main(int argc, char *argv[]){
 			  st_u.numreq=-1;
               
               arr_user[numUsers]=st_u;
-			  
 
-              
                if(userUpdate!=0){
                  numUsers=oldNumUsers;
               }
@@ -287,10 +326,11 @@ int main(int argc, char *argv[]){
              	strcat(msg,"RRG ");
 				strcat(msg,"OK");
 				strcat(msg,"\n");
-				
-				
-              if(verboseMode==1)	
+
+              if(verboseMode==1){	
 					printf("---> sending this by udp connection: %s",msg);
+					  //fputs(msg, fp);
+					}
 				
         		  ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);             
               
@@ -300,12 +340,15 @@ int main(int argc, char *argv[]){
               strcat(msg,"NOK");
               strcat(msg,"\n");
               
-			if(verboseMode==1)
+			if(verboseMode==1){
 				printf("---> sending this by udp connection: %s",msg);
+				//fputs(msg, fp);
+				}
 				
-              ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);  
-            
-            }		  
+				
+            ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);  
+	
+            	}		  
 			}else if(strcmp(op,"UNR")==0){ 
         
               struct user_st st_u;
@@ -330,8 +373,11 @@ int main(int argc, char *argv[]){
                 strcat(msg,"OK");
                 strcat(msg,"\n");
 				
-				if(verboseMode==1)
+				if(verboseMode==1){
 					printf("---> sending this by udp connection: %s",msg);
+						  //fputs(msg, fp);
+					}
+				
                 
                 ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen); 
           
@@ -341,19 +387,119 @@ int main(int argc, char *argv[]){
                 strcat(msg,"NOK");
                 strcat(msg,"\n");
 			
-				if(verboseMode==1)
+				if(verboseMode==1){
 						printf("---> sending this by udp connection: %s",msg);
+							  //fputs(msg, fp);
+					}
+				
                 
                 ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen); 
               
               }
+		  }else if(strcmp(op,"VLD")==0){
+			  
+			  struct user_st st_u;
+			  struct request_st st_r;
+			  char op[2];
+
+
+			  for(int i =0;i<= numUsers; i++ ){
+				  if(strcmp(arr_user[i].uid,user)==0){
+					  st_u = arr_user[i];
+					  break;
+					  }	
+					}
+					
+				for(int i =0;i<= st_u.numreq; i++ ){
+					if(strcmp(st_u.arr_req[i].TID,pass)==0){
+						st_r = st_u.arr_req[i];
+						break;
+					}	
+				}
+
+				if(strcmp(st_u.uid,"")==0 ){
+
+					strcat(msg,"CNF ");
+					strcat(msg, user);
+					strcat(msg," ");
+					strcat(msg, pass);
+					strcat(msg," ");
+					strcat(msg,"E");
+					strcat(msg,"\n");
+
+				}else if(checkOpWithFile(st_r.op)){
+
+						strcat(msg,"CNF ");
+						strcat(msg, user);
+						strcat(msg," ");
+						strcat(msg, st_r.TID);
+						strcat(msg," ");
+						strcat(msg, st_r.op);
+						strcat(msg," ");
+						strcat(msg, st_r.fileName);
+						strcat(msg,"\n");
+					} else{
+
+						if(st_r.op[0]=='X'){
+
+							struct request_st st_r;
+							char tempTID[10];
+							char tempOP[1];
+							int updateList=0;
+
+							strcpy(tempTID,st_r.TID);
+							strcpy(tempOP,st_r.op);
+						
+							for(int i =0;i<= numUsers; i++ ){
+								
+								if(strcmp(arr_user[i].uid,st_u.uid)==0){
+										updateList=1;
+								}
+
+								if(updateList==1){
+									arr_user[i-1]=arr_user[i];
+								}	
+							}
+
+							numUsers--;
+
+							strcat(msg,"CNF ");
+							strcat(msg, user);
+							strcat(msg," ");
+							strcat(msg, tempTID);
+							strcat(msg," ");
+							strcat(msg, tempOP);
+							strcat(msg,"\n");	
+
+						}else {
+
+						strcat(msg,"CNF ");
+						strcat(msg, user);
+						strcat(msg," ");
+						strcat(msg, st_r.TID);
+						strcat(msg," ");
+						strcat(msg, st_r.op);
+						strcat(msg,"\n");
+						}
+					}
+
+			  if(verboseMode==1){
+				printf("---> sending this by udp connection: %s",msg);
+					  //fputs(msg, fp);
+					}
+
+			  ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen); 
+		  
           }else{
           
             strcat(msg,"ERR");
             strcat(msg,"\n");
 			
-			if(verboseMode==1)
+			if(verboseMode==1){
 				printf("---> sending this by udp connection: %s",msg);
+					  //fputs(msg, fp);
+					}
+				
 
 			
             ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);  
@@ -378,10 +524,10 @@ int main(int argc, char *argv[]){
 			
 			n=read(tcp_accept_fd,tcp_buffer,sizeof(tcp_buffer));
 			
-			// -v verbose mode
-			if(verboseMode==1)
+			if(verboseMode==1){
 				printf("---> got this by TCP connect: %s",tcp_buffer);
-
+					  //fputs(msg, fp);
+					}
 
 			sscanf(tcp_buffer,"%s %s %s %s %s", op, user, arg1,arg2,arg3);  
 
@@ -391,16 +537,10 @@ int main(int argc, char *argv[]){
 			
 			 if(strcmp(op,"LOG")==0){
 				
-				// ESTRUTURA DE DADOS PARA O USER
-				
-				
 				for(int i =0;i<= numUsers; i++ ){
-				
 					if(strcmp(arr_user[i].uid,user)==0){
-							
 							st_u = arr_user[i];
 							uindex=i;
-
 							break;
 					}	
 				}
@@ -467,11 +607,14 @@ int main(int argc, char *argv[]){
 								
 						char* fileName =arg3;
 						
-						errcode = getaddrinfo(st_u.pdIp,st_u.pdPort,&hints,&res);
+						errcode = getaddrinfo(st_u.pdIp,st_u.pdPort,&hints,&res);	
 						
+						if(verboseMode==1){
 						
-						if(verboseMode==1)
 							printf("---> sending this by udp connection: %s",udp_msg);
+								  //fputs(msg, fp);
+					}
+				
 			
 						n=sendto(fd,udp_msg,strlen(udp_msg),0,res->ai_addr,res->ai_addrlen);
 						
@@ -481,8 +624,11 @@ int main(int argc, char *argv[]){
 															
 						sscanf(udp_msg,"%s %s", op, status); 
 						
-						if(verboseMode==1)
-							printf("---> got this by udp connection: %s",udp_msg);
+						if(verboseMode==1){
+							printf("---> got this by udp connection: %s %s",op,status);
+							//fputs(msg, fp);
+					}
+				
 									
 						if(st_u.isLogged==0){
 							
@@ -505,12 +651,18 @@ int main(int argc, char *argv[]){
 						}  else {
 							
 							struct request_st st_r;
-							
+							char tidString[10];
+
 							st_u.numreq++;
+
+							sprintf(tidString,"%d",++TID);
 							
 							strcpy(st_r.RID,arg1);
+							strcpy(st_r.op,arg2);
+							strcpy(st_r.fileName,arg3);
 							strcpy(st_r.VC,VC);
-							st_r.TID=++TID;							
+							strcpy(st_r.TID,tidString);
+							st_r.vcUsed=0;						
 
 							st_u.arr_req[st_u.numreq]=st_r;
 														
@@ -528,8 +680,6 @@ int main(int argc, char *argv[]){
 				struct request_st st_r;
 				char tidString[500];
 				
-
-				
 				 for(int i =0;i<= numUsers; i++ ){
 					if(strcmp(arr_user[i].uid,user)==0){
 							st_u = arr_user[i];
@@ -537,7 +687,6 @@ int main(int argc, char *argv[]){
 					}	
 				}
 					
-
 				for(int i =0;i<= st_u.numreq; i++ ){
 					if(strcmp(st_u.arr_req[i].RID,arg1)==0){
 							st_r = st_u.arr_req[i];
@@ -545,8 +694,9 @@ int main(int argc, char *argv[]){
 					}	
 				}
 
-				if(strcmp(st_r.VC,arg2)==0){
-					sprintf(tidString,"%d",st_r.TID);
+				if(strcmp(st_r.VC,arg2)==0 && st_r.vcUsed==0){
+					strcpy(tidString,st_r.TID);
+					st_r.vcUsed=1;
 				}else{
 					sprintf(tidString,"%d",0);
 				}
@@ -561,8 +711,11 @@ int main(int argc, char *argv[]){
 			 }
 
 
-			if(verboseMode==1)
+			if(verboseMode==1){
 				printf("---> sending this by TCP connect: %s",tcp_msg);
+					  //fputs(msg, fp);
+					}
+				
 						
 			n=write(tcp_accept_fd,tcp_msg,sizeof(tcp_msg));
 			close(tcp_accept_fd);	
@@ -571,20 +724,13 @@ int main(int argc, char *argv[]){
 			memset(tcp_msg,0,strlen(tcp_msg));
 			memset(udp_msg,0,strlen(udp_msg));
 			memset(udp_buffer,0,strlen(udp_buffer));
-			
+			memset(msg,0,strlen(msg));
+
 			
 			structChecker(arr_user);
 			
-			
-			
-			
-		}
-		
-		
+		}	
    }
-	
   }
-
   return 0;
 }
-
