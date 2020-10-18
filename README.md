@@ -39,7 +39,7 @@ make
 >./AS -v -p 58111
 	  
 ### TODO 
-#### ->Comunicação entre o AS e o FS.
+#### ->Testar a comunicação entre o AS e o FS quando for para apagar a informação do user.
 #### ->Novos desenvolvimentos para o User
 #### ->Servidor FS
 #### ->Testes com outras componentes.
