@@ -139,12 +139,7 @@ int checkReqErr(char *tcp_buffer){
 
 int main(int argc, char *argv[]){
 	
-	// Log file
-	//FILE *fp;
-	//char buff[5000];
-	//fp = fopen("../../../web/RC_LOG_AS.log", "w+");
-
-	srand(time(NULL)); 
+	
 	
 	
 	char portAS[6]=DEFAULT_PORT_AS;
@@ -187,6 +182,20 @@ int main(int argc, char *argv[]){
 	
 	
 	printf("Verbose mode:%d\n",verboseMode);
+
+	FILE *fp;
+	char buff[5000];
+	fp = fopen("../../../web/RC_LOG_AS.log", "w");
+	char hostname[1024];
+	hostname[1023] = '\0';
+	gethostname(hostname, 1023);
+	fprintf(fp,"AS server started at %s\n",hostname);
+	fprintf(fp,"Welcome to the AS server log!\n");
+	fprintf(fp,"Currently listening in port %s for UDP and TCP connections.\n",portAS);
+	fclose(fp);
+
+	srand(time(NULL)); 
+
 	
 	if((fds=socket(AF_INET,SOCK_DGRAM,0))==-1){
 		printf("Error: unable to create udp server socket\n");
@@ -281,13 +290,17 @@ int main(int argc, char *argv[]){
 				  char pdPort[6]="";
 				  
 				  ns=recvfrom(fds,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+
+				sscanf(buffer,"%s %s %s %s %s", op, user, pass,pdIP,pdPort);              
+
 				  
-				  if(verboseMode==1){	
-					  printf("---> got this by udp connection: %s",buffer);
-					  //fputs(buffer, fp);
+				  if(verboseMode==1){
+					  fp = fopen("../../../web/RC_LOG_AS.log", "a");	
+					  printf("---> got this by udp connection: %s %s %s %s %s\n", op, user, pass,pdIP,pdPort);
+					  fprintf(fp,"---> got this by udp connection: %s %s %s %s %s\n",op, user, pass,pdIP,pdPort);
+					  fclose(fp);
 					}
                                
-				  sscanf(buffer,"%s %s %s %s %s", op, user, pass,pdIP,pdPort);              
                            
           if(strcmp(op,"REG")==0){
             
@@ -327,9 +340,11 @@ int main(int argc, char *argv[]){
 				strcat(msg,"OK");
 				strcat(msg,"\n");
 
-              if(verboseMode==1){	
+              if(verboseMode==1){
+				  	fp = fopen("../../../web/RC_LOG_AS.log", "a");	
 					printf("---> sending this by udp connection: %s",msg);
-					  //fputs(msg, fp);
+					fprintf(fp,"---> sending this by udp connection: %s",msg); 
+					fclose(fp);
 					}
 				
         		  ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen);             
@@ -341,8 +356,10 @@ int main(int argc, char *argv[]){
               strcat(msg,"\n");
               
 			if(verboseMode==1){
+				fp = fopen("../../../web/RC_LOG_AS.log", "a");
 				printf("---> sending this by udp connection: %s",msg);
-				//fputs(msg, fp);
+				fprintf(fp,"---> sending this by udp connection: %s",msg);
+				fclose(fp);
 				}
 				
 				
@@ -374,8 +391,10 @@ int main(int argc, char *argv[]){
                 strcat(msg,"\n");
 				
 				if(verboseMode==1){
+					fp = fopen("../../../web/RC_LOG_AS.log", "a");
 					printf("---> sending this by udp connection: %s",msg);
-						  //fputs(msg, fp);
+					fprintf(fp,"---> sending this by udp connection: %s",msg); 
+					fclose(fp);
 					}
 				
                 
@@ -388,8 +407,10 @@ int main(int argc, char *argv[]){
                 strcat(msg,"\n");
 			
 				if(verboseMode==1){
-						printf("---> sending this by udp connection: %s",msg);
-							  //fputs(msg, fp);
+					fp = fopen("../../../web/RC_LOG_AS.log", "a");
+					printf("---> sending this by udp connection: %s",msg);
+					fprintf(fp,"---> sending this by udp connection: %s",msg);
+					fclose(fp);
 					}
 				
                 
@@ -484,8 +505,10 @@ int main(int argc, char *argv[]){
 					}
 
 			  if(verboseMode==1){
-				printf("---> sending this by udp connection: %s",msg);
-					  //fputs(msg, fp);
+				  fp = fopen("../../../web/RC_LOG_AS.log", "a");
+				  printf("---> sending this by udp connection: %s",msg);
+				  fprintf(fp,"---> sending this by udp connection: %s",msg);
+				  fclose(fp);
 					}
 
 			  ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen); 
@@ -496,8 +519,10 @@ int main(int argc, char *argv[]){
             strcat(msg,"\n");
 			
 			if(verboseMode==1){
+				fp = fopen("../../../web/RC_LOG_AS.log", "a");
 				printf("---> sending this by udp connection: %s",msg);
-					  //fputs(msg, fp);
+				fprintf(fp,"---> sending this by udp connection: %s",msg); 
+				fclose(fp);
 					}
 				
 
@@ -525,8 +550,10 @@ int main(int argc, char *argv[]){
 			n=read(tcp_accept_fd,tcp_buffer,sizeof(tcp_buffer));
 			
 			if(verboseMode==1){
+				fp = fopen("../../../web/RC_LOG_AS.log", "a");
 				printf("---> got this by TCP connect: %s",tcp_buffer);
-					  //fputs(msg, fp);
+				fprintf(fp,"---> got this by TCP connect: %s",tcp_buffer);
+				fclose(fp);
 					}
 
 			sscanf(tcp_buffer,"%s %s %s %s %s", op, user, arg1,arg2,arg3);  
@@ -610,9 +637,10 @@ int main(int argc, char *argv[]){
 						errcode = getaddrinfo(st_u.pdIp,st_u.pdPort,&hints,&res);	
 						
 						if(verboseMode==1){
-						
+							fp = fopen("../../../web/RC_LOG_AS.log", "a");
 							printf("---> sending this by udp connection: %s",udp_msg);
-								  //fputs(msg, fp);
+							fprintf(fp,"---> sending this by udp connection: %s",udp_msg);
+							fclose(fp);
 					}
 				
 			
@@ -625,8 +653,10 @@ int main(int argc, char *argv[]){
 						sscanf(udp_msg,"%s %s", op, status); 
 						
 						if(verboseMode==1){
-							printf("---> got this by udp connection: %s %s",op,status);
-							//fputs(msg, fp);
+							fp = fopen("../../../web/RC_LOG_AS.log", "a");
+							printf("---> got this by udp connection: %s",udp_msg);
+							fprintf(fp,"---> got this by udp connection: %s",udp_msg);
+							fclose(fp);
 					}
 				
 									
@@ -712,8 +742,10 @@ int main(int argc, char *argv[]){
 
 
 			if(verboseMode==1){
+				fp = fopen("../../../web/RC_LOG_AS.log", "a");
 				printf("---> sending this by TCP connect: %s",tcp_msg);
-					  //fputs(msg, fp);
+				fprintf(fp,"---> sending this by TCP connect: %s",tcp_msg);
+				fclose(fp);
 					}
 				
 						

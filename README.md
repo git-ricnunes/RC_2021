@@ -37,6 +37,9 @@ make
 >./AS -v
 
 >./AS -v -p 58111
+
+##### Log aplicacional AS server
+http://web.tecnico.ulisboa.pt/ist171015/RC_LOG_AS.log
 	  
 ### TODO 
 #### ->Testar a comunicação entre o AS e o FS quando for para apagar a informação do user.
