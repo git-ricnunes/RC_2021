@@ -234,11 +234,15 @@ int main(int argc, char *argv[]){
 					if(strcmp(op,"VLC")==0){
   						if(strcmp(userAs,user)==0){                                   
     						strcat(msg,"RVC ");
+							strcat(msg,user);
+							strcat(msg," ");
     						strcat(msg,"OK");
     						strcat(msg,"\n");
     						
    					  } else {	
     						strcat(msg,"RVC ");
+							strcat(msg,user);
+    						strcat(msg," ");
     						strcat(msg,"NOK");
     						strcat(msg,"\n");
   						}

@@ -397,7 +397,8 @@ int main(int argc, char *argv[]){
 					fclose(fp);
 					}
 				
-                
+                close(tcp_accept_fd);	
+
                 ns=sendto(fds,msg,strlen(msg),0,(struct sockaddr*) &addr,addrlen); 
           
               } else {
@@ -749,8 +750,7 @@ int main(int argc, char *argv[]){
 					}
 				
 						
-			n=write(tcp_accept_fd,tcp_msg,sizeof(tcp_msg));
-			close(tcp_accept_fd);	
+			n=write(tcp_accept_fd,tcp_msg,strlen(tcp_msg));
 			
 			memset(buffer,0,strlen(buffer));
 			memset(tcp_msg,0,strlen(tcp_msg));
