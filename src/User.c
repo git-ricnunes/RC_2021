@@ -63,7 +63,6 @@ void write_msg(int fd){
 		if (n_sum == n_msg) /* All bytes written */
 			return;
 		else /* Still bytes left to write */
-			write(1, "echo: test", 6);
 			continue;
 	}
 }
@@ -130,6 +129,7 @@ int main(int argc, char *argv[]){
 	if (fdAS == -1){
 		fprintf(stderr, "Error: unable to create tcp client socket\n");
 		fprintf(stderr, "Error code: %d\n", errno);
+		exit(1);
 	}
 		
 	memset(&hintsAS, 0, sizeof hintsAS);
@@ -140,12 +140,14 @@ int main(int argc, char *argv[]){
 	if (errcode != 0){
 		fprintf(stderr, "Error: unable to get authentication server address info\n");
 		fprintf(stderr, "Error code: %d\n", errno);
+		exit(1);
 	}
 
 	n = connect(fdAS, resAS->ai_addr, resAS->ai_addrlen);
 	if(n == -1){
 		fprintf(stderr, "Error: failed to connect to authentication server\n");
 		fprintf(stderr, "Error code: %d\n", errno);
+		exit(1);
 	}
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
