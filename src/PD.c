@@ -121,7 +121,8 @@ int main(int argc, char *argv[]){
     hints.ai_family=AF_INET;
     hints.ai_socktype=SOCK_DGRAM;
     hints.ai_flags=AI_PASSIVE;
-  
+
+  	// DEFAULT_PORT_PD -> portPD[6]??
     errcode=getaddrinfo(NULL,DEFAULT_PORT_PD,&hints,&res);
     if(errcode!=0) exit(1);
 
@@ -144,6 +145,7 @@ int main(int argc, char *argv[]){
 	hints.ai_socktype=SOCK_DGRAM;
 		
 	errcode = getaddrinfo(ipAS,portAS,&hints,&res);
+	
 	
     while(1){
 		
