@@ -18,6 +18,8 @@
 servidor imprime descricao dos pedidos recebidos e o IP e porta desses pedidos
 */
 int verbose_mode = 0;
+
+int AS_waiting_answer = 0;
 //int para percorrer o array dos utilizadores ativos
 int udp_fd, tcp_fd, newfd_tcp, errcode;
 ssize_t n, n_udp;
@@ -26,18 +28,46 @@ struct addrinfo hints_tcp, *res_tcp;
 struct addrinfo hints_udp, *res_udp;
 struct sockaddr_in addr;
 char buffer[128], tcp_buffer[128];
+int pos_atual = 0;
+
+typedef struct{
+    char uid[6];
+    char tid[6];
+    int fd_tcp;
+}tcp_FD;
+tcp_FD TCP_FDS[100];
+
+int getFD_TCP(char UID[], char TID[]){
+	int right_tcp;
+	for (int i = 0; i < pos_atual; i++){
+		if ((strcmp(UID, TCP_FDS[i].uid) == 0) && (strcmp(TID, TCP_FDS[i].tid) == 0))
+			right_tcp = TCP_FDS[i].fd_tcp;
+	}
+	return right_tcp;
+}
+
+void setFD_TCP(char UID[], char TID[], int fd){
+	strcpy(TCP_FDS[pos_atual].uid, UID);
+	strcpy(TCP_FDS[pos_atual].tid, TID);
+	TCP_FDS[pos_atual].fd_tcp = fd;
+	pos_atual++;
+	return;
+}
+
+
 
 int main(int argc, char *argv[]){
 	fd_set active_fd_set, temp_fd_set;
 	FD_ZERO(&active_fd_set);
 	FD_ZERO(&temp_fd_set);
-	int i, maxfd, retval;
+	int maxfd, retval;
 	char portFS[8] = PORT_FS_DEFAULT;
 	char portAS[8] = PORT_AS_DEFAULT;
 	char ipAS[18] = IP_AS_DEFAULT;
+	int fd_tcp_atual;
 
 
-	for (int i = 1; i <= argc; i++){
+	for (int i = 1; i <= argc - 1; i++){
 		if (argv[i][0] == '-' && strlen(argv[i]) == 2){
 			switch (argv[i][1]){
 				case 'q':
@@ -119,14 +149,6 @@ int main(int argc, char *argv[]){
 
 		temp_fd_set = active_fd_set;
 
-		for (i = 0; i < n; i++)
-			if(active_fd_users[i] != 0){
-				FD_SET(active_fd_users[i], &rfds);
-				if(active_fd_users[i] > maxfd)
-					maxfd = active_fd_users[i];
-			}
-
-
 		retval = select(maxfd+1,&temp_fd_set,(fd_set *)NULL,(fd_set *)NULL,(struct timeval *) NULL);
 		if(retval == -1){
 			printf("Error: Select\n");
@@ -136,15 +158,17 @@ int main(int argc, char *argv[]){
 			if(!retval)
 				break;
 
-			if(FD_ISSET(i, temp_fd_set)){
-				if(i == tcp_fd, &rfds){
+			if(FD_ISSET(i, &temp_fd_set)){
+				if(i == tcp_fd){
 					addrlen = sizeof(addr);
 					if((newfd_tcp = accept(tcp_fd, (struct sockaddr*) &addr, &addrlen)) == -1){
-						printf("%s %s\n","error accept:",strerror(errno));
+						printf("%s %s\n","error server-accept:", strerror(errno));
 						close(tcp_fd);
 						exit(1);
 					}
-					FD_SET(newfd_tcp, active_fd_set);
+					//adiciona a nova conexao ao set ativo
+					FD_SET(newfd_tcp, &active_fd_set);
+					//mantem registo do maximo
 					if(newfd_tcp > maxfd)
 						maxfd = newfd_tcp;
 					retval--;
@@ -160,7 +184,7 @@ int main(int argc, char *argv[]){
 					write(1, buffer, n_udp);
 					// "*" ignora a primeira parte do buffer (CNF)
 					sscanf(buffer,"%*s %s %s %s %s", UID, TID, op , FileName);  
-
+					fd_tcp_atual = getFD_TCP(UID, TID);
 
 					if (strcmp(op, "E") == 0){
 						printf("Error: TID: %s not valid for UID: %s \n", TID, UID);
@@ -185,12 +209,15 @@ int main(int argc, char *argv[]){
 						//Apaga a informacao do utilizador no AS e depois remove todos os ficheiros e pastas do utilizador no FS
 					}
 
+					AS_waiting_answer--;
+					if (AS_waiting_answer == 0)
+						FD_CLR(udp_fd, &active_fd_set);
 					retval--;
-					FD_CLR(fd_tcp, &active_fd_set);
-					close(newfd_tcp);
+					FD_CLR(fd_tcp_atual, &active_fd_set);
+					close(fd_tcp_atual);
 				}
 				else{
-					n = read(newfd_tcp, tcp_buffer, sizeof(tcp_buffer));
+					n = read(i, tcp_buffer, sizeof(tcp_buffer));
 					if(n == -1){
 						printf("Error: unable to read\n");
 						exit(1);
@@ -203,9 +230,12 @@ int main(int argc, char *argv[]){
 					strcat(msg, " ");
 					strcat(msg, TID);
 					strcat(msg, "\n");
+
+					setFD_TCP(UID, TID, i);
 					//Manda mensagem ao AS para validar a transacao
 					n_udp = sendto(udp_fd, msg, strlen(msg), 0, res_udp->ai_addr, res_udp->ai_addrlen);
 					FD_SET(udp_fd, &active_fd_set);
+					AS_waiting_answer++;
 					if(udp_fd > maxfd)
 						maxfd = udp_fd;
 
