@@ -63,6 +63,7 @@ void write_msg(int fd){
 		if (n_sum == n_msg) /* All bytes written */
 			return;
 		else /* Still bytes left to write */
+			write(1, "echo: test", 6);
 			continue;
 	}
 }
@@ -179,7 +180,7 @@ int main(int argc, char *argv[]){
 			sprintf(code, "LOG");
 			strcpy(uid, token_list[1]);
 			strcpy(pass, token_list[2]);
-			sprintf(code, "%s %s %s\n", code, uid, pass);
+			sprintf(msg, "%s %s %s\n", code, uid, pass);
 			fd = AS_FD_SET;
 		}
 		else if (!strcmp(token_list[0], "req")){ /* REQ UID RID Fop [Fname] */
