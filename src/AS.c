@@ -143,7 +143,7 @@ int main(int argc, char *argv[]){
 	char portAS[6]=DEFAULT_PORT_AS;
 	int verboseMode=0;
 	fd_set rfds;
-	int maxfd,maxfd1,retval;
+	int maxfd,maxfd1,maxfd2,retval;
 	struct user_st arr_user[MAX_NUM_U];
 	
 	addrlen = sizeof(addr);
@@ -259,22 +259,20 @@ int main(int argc, char *argv[]){
   		exit(1);
 	}
 
-	if((tcp_accept_fd=accept(tcp_fd,(struct sockaddr*)&addr,&addrlen))==-1){
-				printf("%s %s\n","error accept:",strerror(errno));
-				close(tcp_fd);
-				exit(1);
-			}
+	
 	
 	 while(1){
 		
 			// setting the select vars
+
 			FD_SET(fd,&rfds);
 			FD_SET(fds,&rfds);
-			FD_SET(tcp_accept_fd,&rfds);
-			maxfd1 = max(tcp_accept_fd,fds);
+			FD_SET(tcp_fd,&rfds);
+			maxfd2 = max(tcp_fd,fds);
+			maxfd1 = max(tcp_accept_fd,maxfd2);
 			maxfd = max(maxfd1,fd);
-								  
-			 
+			
+			
 			// reset the message buffers in each iterarion
 			char msg[128]="";
 			char buffer[128]="";
@@ -283,8 +281,22 @@ int main(int argc, char *argv[]){
 			if(maxfd<=0)exit(1);
 			
 			for(;retval;retval--){
-				
-			if(FD_ISSET(fds,&rfds)){
+
+			if(FD_ISSET(tcp_fd,&rfds)){
+				if(tcp_fd == tcp_accept_fd) {
+
+				} else {
+					printf("fd_set tcp accept\n");
+
+					if((tcp_accept_fd=accept(tcp_fd,(struct sockaddr*)&addr,&addrlen))==-1){
+					printf("%s %s\n","error accept:",strerror(errno));
+					close(tcp_fd);
+					exit(1);
+				}
+			}
+			FD_SET(tcp_accept_fd,&rfds);
+
+			}else if(FD_ISSET(fds,&rfds)){
 				//server udp
                    
 				  char op[5]="";
@@ -345,6 +357,9 @@ int main(int argc, char *argv[]){
 
 
               if(verboseMode==1){
+				  	
+					  structChecker(arr_user);
+
 				  	fp = fopen("../../../web/RC_LOG_AS.log", "a");	
 					printf("---> Sending this by UDP connection: %s",msg);
 					fprintf(fp,"---> Sending this by UDP connection: %s",msg); 
@@ -360,6 +375,9 @@ int main(int argc, char *argv[]){
               strcat(msg,"\n");
               
 			if(verboseMode==1){
+				
+				structChecker(arr_user);
+
 				fp = fopen("../../../web/RC_LOG_AS.log", "a");
 				printf("---> Sending this by UDP connection: %s",msg);
 				fprintf(fp,"---> Sending this by UDP connection: %s",msg); 
@@ -395,6 +413,9 @@ int main(int argc, char *argv[]){
                 strcat(msg,"\n");
 				
 				if(verboseMode==1){
+
+					structChecker(arr_user);
+
 
 					fp = fopen("../../../web/RC_LOG_AS.log", "a");
 					printf("---> Sending this by UDP connection: %s",msg);
@@ -740,6 +761,7 @@ int main(int argc, char *argv[]){
 			 }
 
 			if(verboseMode==1){
+
 				fp = fopen("../../../web/RC_LOG_AS.log", "a");
 				printf("---> sending this by TCP connect: %s",tcp_msg);
 				fprintf(fp,"---> sending this by TCP connect: %s",tcp_msg);
@@ -756,7 +778,6 @@ int main(int argc, char *argv[]){
 			memset(msg,0,strlen(msg));
 
 			
-			structChecker(arr_user);
 			
 		}	
    }
