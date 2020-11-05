@@ -18,24 +18,27 @@
 servidor imprime descricao dos pedidos recebidos e o IP e porta desses pedidos
 */
 int verbose_mode = 0;
-
+//Numero de mensagens de verificacao enviadas para o AS
 int AS_waiting_answer = 0;
-//int para percorrer o array dos utilizadores ativos
 int udp_fd, tcp_fd, newfd_tcp, errcode;
 ssize_t n, n_udp;
-socklen_t addrlen;
+socklen_t addrlen_udp;
+socklen_t addrlen_tcp;
 struct addrinfo hints_tcp, *res_tcp;
 struct addrinfo hints_udp, *res_udp;
-struct sockaddr_in addr;
+struct sockaddr_in addr_tcp;
+struct sockaddr_in addr_udp;
 char buffer[128], tcp_buffer[128];
-int pos_atual = 0;
 
+int pos_atual = 0;
+//Estrutura para guardar os dados dos utilizadores que fazem requests
 typedef struct{
     char uid[6];
     char tid[6];
+    char op[6];
     int fd_tcp;
 }tcp_FD;
-tcp_FD TCP_FDS[100];
+tcp_FD TCP_FDS[200];
 
 int getFD_TCP(char UID[], char TID[]){
 	int right_tcp;
@@ -46,9 +49,10 @@ int getFD_TCP(char UID[], char TID[]){
 	return right_tcp;
 }
 
-void setFD_TCP(char UID[], char TID[], int fd){
+void setFD_TCP(char UID[], char TID[], char OP[], int fd){
 	strcpy(TCP_FDS[pos_atual].uid, UID);
 	strcpy(TCP_FDS[pos_atual].tid, TID);
+	strcpy(TCP_FDS[pos_atual].op, OP);
 	TCP_FDS[pos_atual].fd_tcp = fd;
 	pos_atual++;
 	return;
@@ -83,7 +87,9 @@ int main(int argc, char *argv[]){
 					verbose_mode = 1;
 					break;
 				default: /* invalid flag */
-					continue;
+					fprintf(stderr, "Invalid flag\n");
+					fprintf(stderr, "Usage: ./FS [-q FSport] [-n ASIP] [-p ASport] [-v]\n");
+					exit(1);
 			}
 		}
 	}
@@ -100,13 +106,16 @@ int main(int argc, char *argv[]){
 	hints_udp.ai_socktype = SOCK_DGRAM;
 		
 	errcode = getaddrinfo(ipAS, portAS, &hints_udp, &res_udp);
-	if(errcode!=0)
+	if(errcode!=0){
+		fprintf(stderr, "Error: Unable to get address info\n");
+		fprintf(stderr, "Error code: %d\n", errno);
 		exit(1);
+	}
 
 
 
 	// Create the tcp server
-	if((tcp_fd = socket(AF_INET,SOCK_STREAM,0)) == -1){
+	if((tcp_fd = socket(AF_INET, SOCK_STREAM,0)) == -1){
 		printf("Error: unable to create TCP server socket\n");
 		printf("Error code: %d\n", errno);
 		exit(1);
@@ -119,12 +128,12 @@ int main(int argc, char *argv[]){
 		     
 	errcode = getaddrinfo(NULL, portFS, &hints_tcp, &res_tcp);
 	if(errcode == -1) {  
-  		printf("Error: getaddrinfo \n");
+  		printf("Error: Unable to getaddrinfo \n");
   		printf("Error code: %d\n", errno);
   		exit(1);
   		}
 		
-	n = bind(tcp_fd,res_tcp->ai_addr,res_tcp->ai_addrlen);
+	n = bind(tcp_fd,res_tcp->ai_addr, res_tcp->ai_addrlen);
 	if(n==-1) {  
   		printf("Error: unable to bind the tcp server socket\n");
   		printf("Error code: %d\n", errno);
@@ -141,6 +150,7 @@ int main(int argc, char *argv[]){
 	while(1){
 		char msg[128]="";
 		char op[5]="";
+		char CNF[5]="";
 		char UID[6]="";
 		char TID[6]="";
 		char FileName[26]="";
@@ -154,19 +164,19 @@ int main(int argc, char *argv[]){
 			printf("Error: Select\n");
 			exit(1);
 		}
-		for (i = 0; i <= fdmax; i++){
+		for (int i = 0; i <= maxfd; i++){
 			if(!retval)
 				break;
 
 			if(FD_ISSET(i, &temp_fd_set)){
 				if(i == tcp_fd){
-					addrlen = sizeof(addr);
-					if((newfd_tcp = accept(tcp_fd, (struct sockaddr*) &addr, &addrlen)) == -1){
+					addrlen_tcp = sizeof(addr_tcp);
+					if((newfd_tcp = accept(tcp_fd, (struct sockaddr*) &addr_tcp, &addrlen_tcp)) == -1){
 						printf("%s %s\n","error server-accept:", strerror(errno));
 						close(tcp_fd);
 						exit(1);
 					}
-					//adiciona a nova conexao ao set ativo
+					//adiciona a nova conexao ao set ativo. Nao vai ser colocado na verificacao que esta a acontercer atualmente.
 					FD_SET(newfd_tcp, &active_fd_set);
 					//mantem registo do maximo
 					if(newfd_tcp > maxfd)
@@ -174,39 +184,54 @@ int main(int argc, char *argv[]){
 					retval--;
 				}
 				else if(i == udp_fd){
-					addrlen = sizeof(addr);
+					addrlen_udp = sizeof(addr_udp);
 					//recebe mensagem do AS
-					n_udp = recvfrom(udp_fd, buffer, 128, 0, (struct sockaddr*)&addr, &addrlen);
+					n_udp = recvfrom(udp_fd, buffer, 128, 0, (struct sockaddr*)&addr_udp, &addrlen_udp);
 					if (n_udp == -1){
 						printf("Error: unable to receive message\n");
 						exit(1);
 					}
 					write(1, buffer, n_udp);
 					// "*" ignora a primeira parte do buffer (CNF)
-					sscanf(buffer,"%*s %s %s %s %s", UID, TID, op , FileName);  
+					sscanf(buffer,"%s %s %s %s %s", CNF, UID, TID, op , FileName);  
 					fd_tcp_atual = getFD_TCP(UID, TID);
-
-					if (strcmp(op, "E") == 0){
+					if (strcmp(CNF, "CNF") != 0)
+						//print ERR(resposta para o User)
+					else if (strcmp(op, "E") == 0){
 						printf("Error: TID: %s not valid for UID: %s \n", TID, UID);
-						exit(1);
 					}
 					else if (strcmp(op, "L") == 0){
 						//Listar todos os ficheiros que o respetivo utilizador deu upload anteriormente
 						//Utilizar ListDir dado no pdf de apoio ao projeto
+						//if no files available > reply: RLS EOF
 				
 					}
 					else if (strcmp(op, "R") == 0){
-						//Recupera o conteudo do ficheiro "FileName"
+						if (strcmp(FileName, "") == 0)
+							//print ERR(resposta para o User)
+						else{
+							//Recupera o conteudo do ficheiro "FileName"
+						}
 					}
 					else if (strcmp(op, "U") == 0){
-						//Upload do conteudo (data) do ficheiro com o nome "FileName" e tamanho "FileSize"
-
+						if (strcmp(FileName, "") == 0)
+							//print ERR(resposta para o User)
+						else{
+							//Upload do conteudo (data) do ficheiro com o nome "FileName" e tamanho "FileSize"
+						}	
 					}
 					else if (strcmp(op, "D") == 0){
-						//Apaga o ficheiro com o nome "FileName"
+						if (strcmp(FileName, "") == 0)
+							//print ERR(resposta para o User)
+						else{	
+							//Apaga o ficheiro com o nome "FileName"
+						}
 					}
 					else if (strcmp(op, "X") == 0){
 						//Apaga a informacao do utilizador no AS e depois remove todos os ficheiros e pastas do utilizador no FS
+					}
+					else{
+						//print ERR(resposta para o User)
 					}
 
 					AS_waiting_answer--;
@@ -224,14 +249,14 @@ int main(int argc, char *argv[]){
 					}
 
 					//Os ultimos 3 argumentos sao opcionais
-					sscanf(tcp_buffer,"%*s %s %s %*s %s %s", UID, TID, FileSize, Data);
+					sscanf(tcp_buffer,"%s %s %s %*s %s %s", op, UID, TID, FileSize, Data);
 					strcat(msg, "VLD ");
 					strcat(msg, UID);
 					strcat(msg, " ");
 					strcat(msg, TID);
 					strcat(msg, "\n");
 
-					setFD_TCP(UID, TID, i);
+					setFD_TCP(UID, TID, op, i);
 					//Manda mensagem ao AS para validar a transacao
 					n_udp = sendto(udp_fd, msg, strlen(msg), 0, res_udp->ai_addr, res_udp->ai_addrlen);
 					FD_SET(udp_fd, &active_fd_set);
