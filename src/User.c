@@ -21,24 +21,26 @@
 #define IP_SIZE 64
 #define PORT_SIZE 16
 #define BUFFER_SIZE 128
+#define FBUFFER_SIZE 1024
 #define MAX_TOKENS 4
 #define CODE_SIZE 4
 #define UID_SIZE 64
 #define PASS_SIZE 64
 #define RID_SIZE 5
 #define TID_SIZE 5
-//#define STATUS_SIZE 6
-//#define LOGGED_IN 1
-//#define LOGGED_OUT 0
+#define STATUS_SIZE 6
+#define LOGGED_IN 1
+#define LOGGED_OUT 0
 #define AS_FD_SET 1
 #define FS_FD_SET 2
 
 int fdAS, fdFS, errcode;
 ssize_t n;
-socklen_t addrlenAS, addrlenFD;
-struct addrinfo hintsAS, *resAS, hintsFD, *resFD;
-struct sockaddr_in addrAS, addrFD;
+socklen_t addrlenAS, addrlenFS;
+struct addrinfo hintsAS, *resAS, hintsFS, *resFS;
+struct sockaddr_in addrAS, addrFS;
 char buffer[BUFFER_SIZE];
+char fbuffer[FBUFFER_SIZE];
 char msg[BUFFER_SIZE];
 
 void write_msg(int fd){
@@ -157,8 +159,8 @@ int main(int argc, char *argv[]){
 	char pass[PASS_SIZE] = "";
 	char rid[RID_SIZE] = "";
 	char tid[TID_SIZE] = "";
-	//char status[STATUS_SIZE] = "";
-	//int session = LOGGED_OUT;
+	char status[STATUS_SIZE] = "";
+	int session = LOGGED_OUT;
 
 	srand(time(NULL));
 
@@ -178,7 +180,7 @@ int main(int argc, char *argv[]){
 
 		int fd = 0;
 
-		if (!strcmp(token_list[0], "login") && num_tokens == 3){ /* LOG UID pass */
+		if (!strcmp(token_list[0], "login") && num_tokens == 3 && session == LOGGED_OUT){ /* LOG UID pass */
 			sprintf(code, "LOG");
 			strcpy(uid, token_list[1]);
 			strcpy(pass, token_list[2]);
@@ -228,8 +230,6 @@ int main(int argc, char *argv[]){
 			fd = FS_FD_SET;
 		}
 		else if (!strcmp(token_list[0], "exit") && num_tokens == 1){
-			freeaddrinfo(resAS);
-			close(fdAS);
 			break;
 		}
 		else{
@@ -245,18 +245,60 @@ int main(int argc, char *argv[]){
 
 			write(1, "echo: ", 6); write(1, buffer, n);
 
-			if (!strcmp(code, "AUT")){
-				//sscanf tid
-			}
+			sscanf(buffer, "%s %s", code, status);
 
+			if (!strcmp(code, "RLO") && !strcmp(status, "OK")){
+				session = LOGGED_IN;
+			}
+			else if (!strcmp(code, "RAU") && strcmp(status, "0")){
+				strcpy(tid, status);
+			}
 		}
 		else if (fd == FS_FD_SET){
-			//new tcp, incomplete fs interaction
+
+			fdFS = socket(AF_INET, SOCK_STREAM, 0);
+			if (fdFS == -1){
+				fprintf(stderr, "Error: unable to create tcp client socket\n");
+				fprintf(stderr, "Error code: %d\n", errno);
+				exit(1);
+			}
+		
+			memset(&hintsFS, 0, sizeof hintsFS);
+			hintsFS.ai_family = AF_INET;
+			hintsFS.ai_socktype = SOCK_STREAM;
+		
+			errcode = getaddrinfo(ipFS, portFS, &hintsFS, &resFS);
+			if (errcode != 0){
+				fprintf(stderr, "Error: unable to get authentication server address info\n");
+				fprintf(stderr, "Error code: %d\n", errno);
+				exit(1);
+			}
+
+			n = connect(fdFS, resFS->ai_addr, resFS->ai_addrlen);
+			if(n == -1){
+				fprintf(stderr, "Error: failed to connect to file server\n");
+				fprintf(stderr, "Error code: %d\n", errno);
+				exit(1);
+			}
+
+			printf("Connected to File Server ""%s"" in port %s\n", ipFS, portFS);
+
+			write_msg(FS_FD_SET);
+		
+			//incomplete fs interaction
+
+			freeaddrinfo(resFS);
+			close(fdFS);
 		}
 
 		memset(buffer, 0, BUFFER_SIZE);
+		memset(fbuffer, 0, FBUFFER_SIZE);
 		memset(msg, 0, BUFFER_SIZE);
 		memset(code, 0, CODE_SIZE);
 	}
+
+	freeaddrinfo(resAS);
+	close(fdAS);
+
 	return 0;
 }
