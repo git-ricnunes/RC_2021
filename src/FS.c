@@ -204,7 +204,7 @@ int main(int argc, char *argv[]){
 					else if (strcmp(op, "L") == 0){
 						//Listar todos os ficheiros que o respetivo utilizador deu upload anteriormente
 						//Utilizar ListDir dado no pdf de apoio ao projeto
-						//if no files available > reply: RLS EOF
+						//if no files available > reply:: RLS EOF
 				
 					}
 					else if (strcmp(op, "R") == 0){
