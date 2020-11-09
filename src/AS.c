@@ -14,7 +14,7 @@
 #define DEFAULT_PORT_AS "58011"
 #define max(A, B) ((A) >= (B) ? (A) : (B))
 #define MAX_NUM_U 30
-
+#define DEFAULT_FILE_FOLDER "./Log/AsLog.txt"
 int fds, fd, tcp_fd, tcp_accept_fd, errcode;
 ssize_t ns, n;
 socklen_t addrlen;
@@ -64,9 +64,10 @@ int checkFileOp(char *opOut, char *argument) {
             result = 1;
             break;
         }
-    if (opOut[0] == 'L' && strcmp(argument, "") != 0) {
+
+    if ((opOut[0] == 'L' || opOut[0] == 'X') && strcmp(argument, "") != 0) {
         result = 0;
-    } else if (opOut[0] != 'L' && strcmp(argument, "") == 0) {
+    } else if ((opOut[0] != 'L' && opOut[0] != 'X') && strcmp(argument, "") == 0) {
         result = 0;
     }
 
@@ -179,7 +180,7 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
         return;
 
     FILE *fp;
-    char logMessage[200];
+    char logMessage[500];
 
     if (strcmp(loggerFlag, "I") == 0) {
         sprintf(logMessage, "--> Received %s message from : %s", protocol, buffer);
@@ -187,7 +188,7 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
         printf("%s", logMessage);
 
         if (strcmp(fileFlag, "Y") == 0) {
-            fp = fopen("../../../web/RC_LOG_AS.log", "a");
+            fp = fopen(DEFAULT_FILE_FOLDER, "a");
             fprintf(fp, "%s", logMessage);
             fclose(fp);
         }
@@ -197,21 +198,10 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
         printf("%s", logMessage);
 
         if (strcmp(fileFlag, "Y") == 0) {
-            fp = fopen("../../../web/RC_LOG_AS.log", "a");
+            fp = fopen(DEFAULT_FILE_FOLDER, "a");
             fprintf(fp, "%s", logMessage);
             fclose(fp);
         }
-    } else {
-        fp = fopen("../../../web/RC_LOG_AS.log", "w");
-
-        char hostname[1024];
-        hostname[1023] = '\0';
-        gethostname(hostname, 1023);
-
-        fprintf(fp, "AS server started at %s\n", hostname);
-        fprintf(fp, "Welcome to the AS server log!\n");
-        fprintf(fp, "Currently listening in port %s for UDP and TCP connections.\n", portAS);
-        fclose(fp);
     }
 }
 
@@ -238,6 +228,10 @@ int main(int argc, char *argv[]) {
     fd_set rfds;
     int maxfd, maxfd1, retval;
     struct user_st arr_user[MAX_NUM_U];
+    char hostname[1024];
+    char logMessage[1000];
+    srand(time(NULL));
+    FILE *fp;
 
     addrlen = sizeof(addr);
 
@@ -268,9 +262,18 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
+
     verboseMode == 1 ? "Verbose mode On!\n" : "Verbose mode Off!\n";
 
-    srand(time(NULL));
+    sprintf(logMessage, "AS server started at %s\nCurrently listening in port %s for UDP and TCP connections.\n", hostname, portAS);
+
+    printf("%s", logMessage);
+
+    fp = fopen(DEFAULT_FILE_FOLDER, "w");
+    fprintf(fp, "%s", logMessage);
+    fclose(fp);
 
     if ((fds = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         printf("Error: unable to create udp server socket\n");
@@ -347,6 +350,7 @@ int main(int argc, char *argv[]) {
         FD_SET(tcp_fd, &rfds);
         FD_SET(fd, &rfds);
         FD_SET(fds, &rfds);
+        FD_SET(0, &rfds);
 
         maxfd1 = max(tcp_fd, fds);
         maxfd = max(maxfd1, fd);
@@ -365,7 +369,16 @@ int main(int argc, char *argv[]) {
             exit(1);
 
         for (; retval; retval--) {
-            if (FD_ISSET(tcp_fd, &rfds)) {
+            if (FD_ISSET(0, &rfds)) {
+                char buffer[128];
+
+                fgets(buffer, 128, stdin);
+
+                if (strcmp(buffer, "AuthDB")) {
+                    structChecker(arr_user);
+                }
+
+            } else if (FD_ISSET(tcp_fd, &rfds)) {
                 if ((tcp_accept_fd = accept(tcp_fd, (struct sockaddr *)&addr, &addrlen)) == -1) {
                     printf("%s %s\n", "error accept:", strerror(errno));
                     close(tcp_fd);
@@ -450,27 +463,30 @@ int main(int argc, char *argv[]) {
                     struct user_st st_u;
                     struct request_st st_r;
                     char op[2];
+                    int tidVal = 0;
+                    int uVal = 0;
 
                     for (int i = 0; i <= numUsers; i++) {
                         if (strcmp(arr_user[i].uid, user) == 0) {
                             st_u = arr_user[i];
+                            uVal = 1;
                             break;
                         }
                     }
 
                     for (int i = 0; i <= st_u.numreq; i++) {
+                        if (uVal == 0)
+                            break;
                         if (strcmp(st_u.arr_req[i].TID, pass) == 0) {
-                            st_r = st_u.arr_req[i];
+                            tidVal = 1;
                             break;
                         }
                     }
 
-                    if (strcmp(st_u.uid, "") == 0) {
+                    if (tidVal == 0) {
                         sprintf(msg, "CNF %s %s E\n", user, pass);
-
                     } else if (checkOpWithFile(st_r.op)) {
                         sprintf(msg, "CNF %s %s %s\n", user, st_r.TID, st_r.op, st_r.fileName);
-
                     } else {
                         if (st_r.op[0] == 'X') {
                             struct request_st st_r;
@@ -621,7 +637,7 @@ int main(int argc, char *argv[]) {
                                 strcpy(tidString, st_r.TID);
                                 st_r.vcUsed = 1;
                             } else {
-                                sprintf(tidString, "%d", 0);
+                                sprintf(tidString, "%d\0", 0);
                             }
                             sprintf(tcp_msg, "RAU %s\n", tidString);
                         } else {
