@@ -1,3 +1,4 @@
+#include "msg.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,7 +10,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
 #include <errno.h>
 #include <time.h>
 
@@ -39,60 +39,6 @@ ssize_t n;
 socklen_t addrlenAS, addrlenFS;
 struct addrinfo hintsAS, *resAS, hintsFS, *resFS;
 struct sockaddr_in addrAS, addrFS;
-char buffer[BUFFER_SIZE];
-char fbuffer[FBUFFER_SIZE];
-char msg[BUFFER_SIZE];
-
-void write_msg(int fd){
-
-	int n_sum = 0;
-	int n_msg = strlen(msg);
-	int n_sent;
-
-	while(1){
-		if (fd == AS_FD_SET)
-			n_sent = write(fdAS, msg, strlen(msg));
-		else if (fd == FS_FD_SET)
-			n_sent = write(fdFS, msg, strlen(msg));
-
-		if (n_sent == -1){ /* Err */
-			fprintf(stderr, "Error: failed to send ""%s"" to authentication server\n", msg);
-			fprintf(stderr, "Error code: %d\n", errno);
-			exit(1);
-		}
-
-		n_sum += n_sent;
-		if (n_sum == n_msg) /* All bytes written */
-			return;
-		else /* Still bytes left to write */
-			continue;
-	}
-}
-
-int read_msg(int fd){
-
-	int n_sum = 0;
-	int n_rec;
-
-	while(1){
-		if (fd == AS_FD_SET)
-			n_rec = read(fdAS, buffer, sizeof(buffer));
-		else if (fd == FS_FD_SET)
-			n_rec = read(fdFS, buffer, sizeof(buffer));
-
-		if (n_rec == -1){ /* Err */
-			fprintf(stderr, "Error: failed to read message from authentication server\n");
-			fprintf(stderr, "Error code: %d\n", errno);
-			exit(1);
-		}
-
-		n_sum += n_rec;
-		if (buffer[n_sum-1] == '\n') /* All bytes read */
-			return n_sum;
-		else /* Still bytes left to read */
-			continue;
-	}
-}
 
 int main(int argc, char *argv[]){
 
@@ -154,11 +100,14 @@ int main(int argc, char *argv[]){
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
 
+	char buffer[BUFFER_SIZE];
+	char fbuffer[FBUFFER_SIZE];
+	char msg[BUFFER_SIZE];
 	char code[CODE_SIZE] = "";
 	char uid[UID_SIZE] = "";
 	char pass[PASS_SIZE] = "";
 	char rid[RID_SIZE] = "";
-	char tid[TID_SIZE] = "";
+	char tid[TID_SIZE] = "0";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
 
@@ -230,7 +179,9 @@ int main(int argc, char *argv[]){
 			fd = FS_FD_SET;
 		}
 		else if (!strcmp(token_list[0], "exit") && num_tokens == 1){
-			break;
+			freeaddrinfo(resAS);
+			close(fdAS);
+			exit(0);
 		}
 		else{
 			fprintf(stderr, "Invalid command\n");
@@ -239,9 +190,9 @@ int main(int argc, char *argv[]){
 		
 		if (fd == AS_FD_SET){
 
-			write_msg(AS_FD_SET);
+			write_buf(fdAS, msg);
 		
-			n = read_msg(AS_FD_SET);
+			n = read_buf(fdAS, buffer, sizeof(buffer));
 
 			write(1, "echo: ", 6); write(1, buffer, n);
 
@@ -283,9 +234,9 @@ int main(int argc, char *argv[]){
 
 			printf("Connected to File Server ""%s"" in port %s\n", ipFS, portFS);
 
-			write_msg(FS_FD_SET);
+			write_buf(fdFS, msg);
 		
-			//incomplete fs interaction
+			//
 
 			freeaddrinfo(resFS);
 			close(fdFS);
@@ -296,9 +247,6 @@ int main(int argc, char *argv[]){
 		memset(msg, 0, BUFFER_SIZE);
 		memset(code, 0, CODE_SIZE);
 	}
-
-	freeaddrinfo(resAS);
-	close(fdAS);
 
 	return 0;
 }
