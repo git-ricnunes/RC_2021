@@ -195,34 +195,38 @@ int main(int argc, char *argv[]){
 					// "*" ignora a primeira parte do buffer (CNF)
 					sscanf(buffer,"%s %s %s %s %s", CNF, UID, TID, op , FileName);  
 					fd_tcp_atual = getFD_TCP(UID, TID);
-					if (strcmp(CNF, "CNF") != 0)
+					if (strcmp(CNF, "CNF") != 0){
 						//print ERR(resposta para o User)
+					}
 					else if (strcmp(op, "E") == 0){
 						printf("Error: TID: %s not valid for UID: %s \n", TID, UID);
 					}
 					else if (strcmp(op, "L") == 0){
 						//Listar todos os ficheiros que o respetivo utilizador deu upload anteriormente
 						//Utilizar ListDir dado no pdf de apoio ao projeto
-						//if no files available > reply: RLS EOF
+						//if no files available > reply:: RLS EOF
 				
 					}
 					else if (strcmp(op, "R") == 0){
-						if (strcmp(FileName, "") == 0)
+						if (strcmp(FileName, "") == 0){
 							//print ERR(resposta para o User)
+						}
 						else{
 							//Recupera o conteudo do ficheiro "FileName"
 						}
 					}
 					else if (strcmp(op, "U") == 0){
-						if (strcmp(FileName, "") == 0)
+						if (strcmp(FileName, "") == 0){
 							//print ERR(resposta para o User)
+						}
 						else{
 							//Upload do conteudo (data) do ficheiro com o nome "FileName" e tamanho "FileSize"
 						}	
 					}
 					else if (strcmp(op, "D") == 0){
-						if (strcmp(FileName, "") == 0)
+						if (strcmp(FileName, "") == 0){
 							//print ERR(resposta para o User)
+						}
 						else{	
 							//Apaga o ficheiro com o nome "FileName"
 						}
