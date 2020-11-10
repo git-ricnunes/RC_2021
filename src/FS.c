@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -11,6 +12,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <dirent.h>
+#include <msg.h>
 
 #define IP_AS_DEFAULT "127.0.0.1"
 #define PORT_AS_DEFAULT "58011"
@@ -266,6 +268,9 @@ int main(int argc, char *argv[]){
 	FD_SET(tcp_fd, &active_fd_set);
 	maxfd = tcp_fd;
 
+	memset(&act, 0, sizeof act);
+    act.sa_handler = SIG_IGN;
+    signal(SIGPIPE, SIG_IGN);
 	while(1){
 		temp_fd_set = active_fd_set;
 
@@ -441,7 +446,11 @@ int main(int argc, char *argv[]){
 						}
 					}
 
-					write(TCP_FDS[user_atual].fd_tcp, msg, strlen(msg));
+					n = write_buf_SIGPIPE(TCP_FDS[user_atual].fd_tcp, msg);
+					if(n == -1){
+      						//Conexao ja estava terminada
+    						printf("User connection closed(sigpipe).\n");
+      				}
 					AS_waiting_answer--;
 					if (AS_waiting_answer == 0)
 						FD_CLR(udp_fd, &active_fd_set);
@@ -452,7 +461,8 @@ int main(int argc, char *argv[]){
 				// recebe mensagem de user
 				else{
 					memset(reply_msg, 0, sizeof(reply_msg));
-					n = read(i, tcp_buffer, sizeof(tcp_buffer));
+					//nao esta corrento while( numero maximo de caract ver discord)
+					n = read_buf(i, tcp_buffer, sizeof(tcp_buffer));
 					if(n == -1){
 						printf("Error: unable to read\n");
 						fprintf(stderr, "Error code: %d\n", errno);
@@ -637,10 +647,10 @@ int main(int argc, char *argv[]){
 							strcat(reply_msg, " DUP");
 						else if(ERR == FULL_ERR)
 							strcat(reply_msg, " FULL");
-      					n = write(i, reply_msg, strlen(reply_msg));
+      					n = write_buf_SIGPIPE(i, reply_msg);
       					if(n == -1){
-      						printf("Unable to write\n");
-      						exit(1);
+      						//Conexao ja estava terminada
+    						printf("User connection closed(sigpipe).\n");
       					}
       					retval--;
       					FD_CLR(i, &active_fd_set);
