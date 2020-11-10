@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
 #ifndef MSG_H_
 #define MSG_H_
 
