@@ -11,9 +11,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "msg.h"
 #define DEFAULT_PORT_AS "58011"
 #define max(A, B) ((A) >= (B) ? (A) : (B))
-#define MAX_NUM_U 30
+#define MAX_NUM_U 100
 #define DEFAULT_FILE_FOLDER "./Log/AsLog.txt"
 int fds, fd, tcp_fd, tcp_accept_fd, errcode;
 ssize_t ns, n;
@@ -28,7 +29,7 @@ char tcp_msg[128];
 char udp_msg[128];
 char udp_buffer[128];
 int tcp_fd_array[MAX_NUM_U];
-int numUsers = -1;
+int numUsers = 0;
 int tcpFdNumUsers = 0;
 int TID = 0;
 
@@ -48,6 +49,7 @@ struct user_st {
     char pdPort[6];
     int isLogged;
     int numreq;
+    int reqComplete;
     struct request_st arr_req[100];
 };
 
@@ -78,12 +80,12 @@ int checkFileOp(char *opOut, char *argument) {
  * Comment Template
  **/
 
-int checkOpWithFile(char *opOut) {
+int checkOpWithFile(char opOut) {
     int result = 0;
     char fileOps[3] = {'R', 'U', 'D'};
 
     for (int i = 0; i < 3; i++)
-        if (opOut[0] == fileOps[i]) {
+        if (opOut == fileOps[i]) {
             result = 1;
             break;
         }
@@ -96,28 +98,29 @@ int checkOpWithFile(char *opOut) {
  **/
 
 void structChecker(struct user_st *arr_user) {
-    printf("### Authentication Database: ###\n");
-    printf("--> Number of users: %d\n", numUsers + 1);
-    for (int j = 0; j <= numUsers; j++) {
-        printf("--> user:%s pass:%s PD_ip:%s PD_port:%s isLogged?:%d numReques:%d\n",
+    printf("\n--------------------------- Authentication Database:  ----------------------------------------\n");
+    printf(" Number of users: %d\n", numUsers);
+    for (int j = 0; j < numUsers; j++) {
+        printf(" User:%s pass:%s PD_ip:%s PD_port:%s isLogged?:%d numRequests:%d\n",
                arr_user[j].uid,
                arr_user[j].pass,
                arr_user[j].pdIp,
                arr_user[j].pdPort,
                arr_user[j].isLogged,
-               arr_user[j].numreq + 1);
-        if (arr_user[j].numreq >= 0) {
-            printf("\tNum of Requests: %d\n", arr_user[j].numreq + 1);
-            for (int k = 0; k <= arr_user[j].numreq; k++) {
-                printf("\t\t->RID:%s VC:%s OP:%c filename:%s TID:%s \n",
+               arr_user[j].numreq);
+        if (arr_user[j].numreq > 0) {
+            for (int k = 0; k < arr_user[j].numreq; k++) {
+                printf("   ->RID:%s VC:%s OP:%c filename:%s TID:%s \n",
                        arr_user[j].arr_req[k].RID,
                        arr_user[j].arr_req[k].VC,
                        arr_user[j].arr_req[k].op[0],
                        arr_user[j].arr_req[k].fileName,
                        arr_user[j].arr_req[k].TID);
             }
+            printf("\n");
         }
     }
+    printf("----------------------------------------------------------------------------------------------\n\n");
 }
 
 /**
@@ -211,15 +214,16 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
 
 void processSIGPIPE(int tcpAcceptFd, int fdId) {
     close(tcp_accept_fd);
+    int temp_tcp_fd_array[tcpFdNumUsers];
 
-    for (int i = fdId; i <= tcpFdNumUsers; i++) {
-        if (fdId == tcpFdNumUsers)
-            tcp_fd_array[i] = 0;
-        else
+    for (int i = 0; i < tcpFdNumUsers; i++) {
+        if (fdId == i)
             tcp_fd_array[i] = tcp_fd_array[i + 1];
     }
 
     tcpFdNumUsers--;
+
+    printf("User connection closed.\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -265,11 +269,9 @@ int main(int argc, char *argv[]) {
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 
-    verboseMode == 1 ? "Verbose mode On!\n" : "Verbose mode Off!\n";
-
     sprintf(logMessage, "AS server started at %s\nCurrently listening in port %s for UDP and TCP connections.\n", hostname, portAS);
 
-    printf("%s", logMessage);
+    printf("%s\n%s", verboseMode == 1 ? "Verbose mode On!\n" : "Verbose mode Off!\n", logMessage);
 
     fp = fopen(DEFAULT_FILE_FOLDER, "w");
     fprintf(fp, "%s", logMessage);
@@ -328,7 +330,7 @@ int main(int argc, char *argv[]) {
     }
 
     n = bind(tcp_fd, res->ai_addr, res->ai_addrlen);
-    if (ns == -1) {
+    if (n == -1) {
         printf("Error: unable to bind the tcp server socket\n");
         printf("Error code: %d\n", errno);
         exit(1);
@@ -360,33 +362,26 @@ int main(int argc, char *argv[]) {
             maxfd = max(maxfd, tcp_fd_array[fd_id]);
         }
 
-        // reset the message buffers in each iterarion
         char msg[128] = "";
         char buffer[128] = "";
+
+        structChecker(arr_user);
 
         retval = select(maxfd + 1, &rfds, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)NULL);
         if (maxfd <= 0)
             exit(1);
 
         for (; retval; retval--) {
-            if (FD_ISSET(0, &rfds)) {
-                char buffer[128];
-
-                fgets(buffer, 128, stdin);
-
-                if (strcmp(buffer, "AuthDB")) {
-                    structChecker(arr_user);
-                }
-
-            } else if (FD_ISSET(tcp_fd, &rfds)) {
+            if (FD_ISSET(tcp_fd, &rfds)) {
                 if ((tcp_accept_fd = accept(tcp_fd, (struct sockaddr *)&addr, &addrlen)) == -1) {
                     printf("%s %s\n", "error accept:", strerror(errno));
                     close(tcp_fd);
                     exit(1);
                 }
 
-                tcpFdNumUsers++;
                 tcp_fd_array[tcpFdNumUsers] = tcp_accept_fd;
+                tcpFdNumUsers++;
+
             } else if (FD_ISSET(fds, &rfds)) {
                 //server udp
                 char op[5] = "";
@@ -405,31 +400,31 @@ int main(int argc, char *argv[]) {
                         struct user_st st_u;
                         struct request_st st_r;
                         int userUpdate = 0;
-                        int oldNumUsers = numUsers;
 
                         for (int i = 0; i < numUsers; i++) {
+                            printf("t:%d %s %s\n", strcmp(arr_user[i].uid, user), arr_user[i].uid, user);
                             if (strcmp(arr_user[i].uid, user) == 0) {
-                                numUsers = i;
                                 userUpdate = 1;
+                                strcpy(arr_user[i].uid, user);
+                                strcpy(arr_user[i].pass, pass);
+                                strcpy(arr_user[i].pdIp, pdIP);
+                                strcpy(arr_user[i].pdPort, pdPort);
+                                arr_user[i].isLogged = 0;
+                                arr_user[i].numreq = 0;
                                 break;
                             }
                         }
 
                         if (userUpdate == 0) {
+                            strcpy(st_u.uid, user);
+                            strcpy(st_u.pass, pass);
+                            strcpy(st_u.pdIp, pdIP);
+                            strcpy(st_u.pdPort, pdPort);
+                            st_u.isLogged = 0;
+                            st_u.numreq = 0;
+
+                            arr_user[numUsers] = st_u;
                             numUsers++;
-                        }
-
-                        strcpy(st_u.uid, user);
-                        strcpy(st_u.pass, pass);
-                        strcpy(st_u.pdIp, pdIP);
-                        strcpy(st_u.pdPort, pdPort);
-                        st_u.isLogged = 0;
-                        st_u.numreq = -1;
-
-                        arr_user[numUsers] = st_u;
-
-                        if (userUpdate != 0) {
-                            numUsers = oldNumUsers;
                         }
 
                         sprintf(msg, "RRG OK\n");
@@ -443,26 +438,23 @@ int main(int argc, char *argv[]) {
 
                     for (int i = 0; i < MAX_NUM_U; i++) {
                         if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0) {
+                            strcpy(arr_user[i].pass, "");
+                            strcpy(arr_user[i].pdIp, "");
+                            strcpy(arr_user[i].pdPort, "");
+                            arr_user[i].isLogged = 0;
                             deleteUser = 1;
-                            deleteUserIndex = i;
-                            numUsers--;
-                            break;
                         }
                     }
 
                     if (deleteUser) {
-                        for (int i = deleteUserIndex; i < numUsers; i++) {
-                            arr_user[i] = arr_user[i + 1];
-                        }
-
                         sprintf(msg, "RUN OK\n");
                     } else {
                         sprintf(msg, "RUN NOK\n");
                     }
+
                 } else if (strcmp(op, "VLD") == 0) {
                     struct user_st st_u;
                     struct request_st st_r;
-                    char op[2];
                     int tidVal = 0;
                     int uVal = 0;
 
@@ -479,38 +471,34 @@ int main(int argc, char *argv[]) {
                             break;
                         if (strcmp(st_u.arr_req[i].TID, pass) == 0) {
                             tidVal = 1;
+                            st_r = st_u.arr_req[i];
                             break;
                         }
                     }
 
                     if (tidVal == 0) {
                         sprintf(msg, "CNF %s %s E\n", user, pass);
-                    } else if (checkOpWithFile(st_r.op)) {
-                        sprintf(msg, "CNF %s %s %s\n", user, st_r.TID, st_r.op, st_r.fileName);
+                    } else if (checkOpWithFile(st_r.op[0])) {
+                        sprintf(msg, "CNF %s %s %c %s\n", user, st_r.TID, st_r.op[0], st_r.fileName);
                     } else {
                         if (st_r.op[0] == 'X') {
-                            struct request_st st_r;
                             char tempTID[10];
-                            char tempOP[1];
+                            char tempOP;
                             int updateList = 0;
 
                             strcpy(tempTID, st_r.TID);
-                            strcpy(tempOP, st_r.op);
+                            tempOP = st_r.op[0];
+
+                            sprintf(msg, "CNF %s %s %c \n", user, st_r.TID, st_r.op[0]);
 
                             for (int i = 0; i <= numUsers; i++) {
                                 if (strcmp(arr_user[i].uid, st_u.uid) == 0) {
-                                    updateList = 1;
-                                }
-
-                                if (updateList == 1) {
-                                    arr_user[i - 1] = arr_user[i];
+                                    arr_user[i].numreq = 0;
+                                    break;
                                 }
                             }
-                            numUsers--;
-                            sprintf(msg, "CNF %s %s\n", user, tempTID, tempOP);
-
                         } else {
-                            sprintf(msg, "CNF %s %s %s\n", user, st_r.TID, st_r.op);
+                            sprintf(msg, "CNF %s %s %c \n", user, st_r.TID, st_r.op[0]);
                         }
                     }
                 } else {
@@ -519,7 +507,7 @@ int main(int argc, char *argv[]) {
                 verboseLogger(verboseMode, msg, "O", "Y", "UDP");
                 ns = sendto(fds, msg, strlen(msg), 0, (struct sockaddr *)&addr, addrlen);
             } else {
-                for (int fd_id = 0; fd_id <= tcpFdNumUsers; fd_id++) {
+                for (int fd_id = 0; fd_id < tcpFdNumUsers; fd_id++) {
                     int tcp_accept_fd = tcp_fd_array[fd_id];
 
                     if (FD_ISSET(tcp_accept_fd, &rfds)) {
@@ -531,7 +519,7 @@ int main(int argc, char *argv[]) {
                         char status[10] = "";
                         int uindex = 0;
 
-                        n = read(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
+                        n = read_buf(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
                         verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
 
                         sscanf(tcp_buffer, "%s %s %s %s %s", op, user, arg1, arg2, arg3);
@@ -599,7 +587,6 @@ int main(int argc, char *argv[]) {
                                 } else {
                                     struct request_st st_r;
                                     char tidString[10];
-                                    st_u.numreq++;
 
                                     sprintf(tidString, "%d", ++TID);
                                     strcpy(st_r.RID, arg1);
@@ -608,8 +595,10 @@ int main(int argc, char *argv[]) {
                                     strcpy(st_r.VC, VC);
                                     strcpy(st_r.TID, tidString);
                                     st_r.vcUsed = 0;
-
                                     st_u.arr_req[st_u.numreq] = st_r;
+
+                                    st_u.numreq++;
+
                                     arr_user[uindex] = st_u;
 
                                     sprintf(tcp_msg, "RRQ OK\n");
@@ -644,11 +633,11 @@ int main(int argc, char *argv[]) {
                             sprintf(tcp_msg, "ERR\n");
                         }
 
-                        n = write(tcp_accept_fd, tcp_msg, strlen(tcp_msg));
+                        n = write_buf_SIGPIPE(tcp_accept_fd, tcp_msg);
 
-                        if (n == -1)
+                        if (n == -1) {
                             processSIGPIPE(tcp_accept_fd, fd_id);
-                        else
+                        } else
                             verboseLogger(verboseMode, tcp_msg, "O", "Y", "TCP");
                     }
                 }
@@ -662,5 +651,11 @@ int main(int argc, char *argv[]) {
             memset(msg, 0, strlen(msg));
         }
     }
+
+    freeaddrinfo(res);
+    freeaddrinfo(res_client_udp);
+    close(fd);
+    close(tcp_fd);
+
     return 0;
 }
