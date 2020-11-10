@@ -12,7 +12,7 @@ make
 
 ## Personal Device
 
-./pd PDIP [-d PDport] [-n ASIP] [-p ASport]
+> ./pd PDIP [-d PDport] [-n ASIP] [-p ASport]
 
 ## Servidor de autenticação
 

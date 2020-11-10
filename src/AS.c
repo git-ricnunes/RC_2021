@@ -213,7 +213,8 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
  **/
 
 void processSIGPIPE(int tcpAcceptFd, int fdId) {
-    close(tcp_accept_fd);
+    close(tcpAcceptFd);
+
     int temp_tcp_fd_array[tcpFdNumUsers];
 
     for (int i = 0; i < tcpFdNumUsers; i++) {

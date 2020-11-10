@@ -28,7 +28,7 @@ struct timeval tv;
 
 int main(int argc, char *argv[]) {
     // Variables
-    tv.tv_sec = 1000;
+    tv.tv_sec = 6;
     tv.tv_usec = 0;
     char portPD[6] = DEFAULT_PORT_PD;
     char portAS[6] = DEFAULT_PORT_AS;
