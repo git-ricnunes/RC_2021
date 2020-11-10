@@ -12,24 +12,16 @@ make
 
 ## Personal Device
 
-### Correr o Personal device:
-
 ./pd PDIP [-d PDport] [-n ASIP] [-p ASport]
 
 ## Servidor de autenticação
-
-### Correr o Servidor de autenticação
 
 > ./AS [-p ASport] [-v]
 
 ## Utilizador
 
-### Aplicação cliente
-
 > ./user [-n ASIP] [-p ASport] [-m FSIP] [-q FSport],
 
-## Utilizador
-
-### Aplicação cliente
+### Servidor de ficheiros
 
 > ./FS [-q FSport] [-n ASIP] [-p ASport] [-v],

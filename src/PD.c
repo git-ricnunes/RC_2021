@@ -208,9 +208,9 @@ int main(int argc, char *argv[]) {
 
                 if (strcmp(op, "RRG") == 0) {
                     if (strcmp(status, "OK") == 0) {
-                        write(1, "Registo de utilizador com sucesso\n", 34);
+                        write(1, "User registred successfully\n", 28);
                     } else if (strcmp(status, "NOK") == 0) {
-                        write(1, "Falha no registo de utilizador\n", 31);
+                        write(1, "User registration failed\n", 26);
                     }
                 } else if (strcmp(op, "RUN") == 0) {
                     if (strcmp(status, "OK") == 0) {
@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
                         strcat(msg, " ");
                         strcat(msg, "OK");
                         strcat(msg, "\n");
-                        sprintf(msgOutput, "Codigo VC: %s \n", onTimeCode);
+                        sprintf(msgOutput, "VC code: %s \n", onTimeCode);
                         write(1, msgOutput, strlen(msgOutput));
                     } else {
                         strcat(msg, "RVC ");
@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
                         strcat(msg, " ");
                         strcat(msg, "NOK");
                         strcat(msg, "\n");
-                        write(1, "Falha na geracao do VC\n", 23);
+                        write(1, "VC generation failed.\n", 22);
                     }
                 } else {
                     strcat(msg, "ERR");
