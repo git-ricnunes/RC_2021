@@ -1,6 +1,6 @@
 # makefile
 CC = gcc
-CFLAGS = -Wall -g -o
+CDFLAGS =-g -o
 LDFLAGS =
 OBJS = pd User AS FS Log
 MKDIR_LOG = mkdir Log
@@ -8,12 +8,12 @@ MKDIR_LOG = mkdir Log
 all:
 	rm -rf Log/
 	$(MKDIR_LOG)
-	$(CC) $(CDFLAGS) pd src/PD.c 
+	$(CC) $(CDFLAGS) pd src/PD.c
 	$(CC) $(CDFLAGS) User src/User.c 
-	$(CC) $(CDFLAGS) AS src/AS.c 
+	$(CC) $(CDFLAGS) AS src/AS.c
 	$(CC) $(CDFLAGS) FS src/FS.c
 pd: 
-	$(CC) $(CDFLAGS) pd src/PD.c msg.o 
+	$(CC) $(CDFLAGS) pd src/PD.c
 User:
 	$(CC) $(CDFLAGS) User src/User.c
 AS:
