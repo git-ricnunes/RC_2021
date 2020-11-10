@@ -28,7 +28,7 @@ struct timeval tv;
 
 int main(int argc, char *argv[]) {
     // Variables
-    tv.tv_sec = 60;
+    tv.tv_sec = 1000;
     tv.tv_usec = 0;
     char portPD[6] = DEFAULT_PORT_PD;
     char portAS[6] = DEFAULT_PORT_AS;
@@ -179,18 +179,20 @@ int main(int argc, char *argv[]) {
                     strcat(msg, " ");
                     strcat(msg, portPD);
                     strcat(msg, "\n");
+
+                    n = sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen);
+
                 } else if (strcmp(op, "exit") == 0) {
                     strcat(msg, "UNR ");
                     strcat(msg, user);
                     strcat(msg, " ");
                     strcat(msg, pass);
                     strcat(msg, "\n");
-                } else {
-                    continue;
-                    write(1, "Invalid input\n", 31);
-                }
+                    n = sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen);
 
-                n = sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen);
+                } else {
+                    write(1, "Invalid input\n", 14);
+                }
 
             } else if (FD_ISSET(fd, &rfds)) {
                 char op[4];
@@ -210,7 +212,7 @@ int main(int argc, char *argv[]) {
                     if (strcmp(status, "OK") == 0) {
                         write(1, "User registred successfully\n", 28);
                     } else if (strcmp(status, "NOK") == 0) {
-                        write(1, "User registration failed\n", 26);
+                        write(1, "User registration failed\n", 25);
                     }
                 } else if (strcmp(op, "RUN") == 0) {
                     if (strcmp(status, "OK") == 0) {
