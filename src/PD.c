@@ -35,6 +35,8 @@ int main(int argc, char *argv[]) {
     char ipPD[18] = DEFAULT_IP_PD;
     char ipAS[18] = DEFAULT_IP_AS;
 
+    char userPD[6] = "";
+    char passPD[9] = "";
     char user[6] = "";
     char pass[9] = "";
 
@@ -187,9 +189,9 @@ int main(int argc, char *argv[]) {
 
                 } else if (strcmp(op, "exit") == 0) {
                     strcat(msg, "UNR ");
-                    strcat(msg, user);
+                    strcat(msg, userPD);
                     strcat(msg, " ");
-                    strcat(msg, pass);
+                    strcat(msg, passPD);
                     strcat(msg, "\n");
 
                 } else {
@@ -211,6 +213,8 @@ int main(int argc, char *argv[]) {
 
                 if (strcmp(op, "RRG") == 0) {
                     if (strcmp(status, "OK") == 0) {
+                        strcpy(userPD, user);
+                        strcpy(passPD, pass);
                         write(1, "User registred successfully\n", 28);
                     } else if (strcmp(status, "NOK") == 0) {
                         write(1, "User registration failed\n", 25);

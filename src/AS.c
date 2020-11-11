@@ -426,8 +426,7 @@ int main(int argc, char *argv[]) {
                                 sprintf(msg, "RRG OK\n");
 
                                 break;
-                            } else if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) != 0 &&
-                                       strcmp(arr_user[i].pdIp, "") == 0) {
+                            } else if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) != 0) {
                                 userUpdate = -1;
                                 sprintf(msg, "RRG NOK\n");
                             }
@@ -643,8 +642,8 @@ int main(int argc, char *argv[]) {
                                     break;
                                 }
                             }
-
-                            if (strcmp(st_r.VC, arg2) == 0 && st_r.vcUsed == 0) {
+                            char vc[5]= st_r.VC);
+                            if (strcmp(vc, arg2) == 0 && st_r.vcUsed == 0) {
                                 strcpy(tidString, st_r.TID);
                                 st_r.vcUsed = 1;
                             } else {
