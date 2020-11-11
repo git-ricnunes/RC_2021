@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
                         strcat(msg, " ");
                         strcat(msg, "OK");
                         strcat(msg, "\n");
-                        sprintf(msgOutput, "VC code: %s \n", onTimeCode);
+                        sprintf(msgOutput, "Operation: %s %s VC code: %s \n", fileOp, fileName onTimeCode);
                         write(1, msgOutput, strlen(msgOutput));
                     } else {
                         strcat(msg, "RVC ");
