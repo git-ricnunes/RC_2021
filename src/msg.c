@@ -1,7 +1,5 @@
 #include "msg.h"
 
-#include <stdlib.h>
-
 void write_buf(int fd, char* buf) {
     int n_sum = 0;
     int n_msg = strlen(buf);
@@ -11,11 +9,7 @@ void write_buf(int fd, char* buf) {
         n_sent = write(fd, buf, strlen(buf));
 
         if (n_sent == -1) { /* Err */
-            fprintf(stderr,
-                    "Error: failed to send "
-                    "%s"
-                    " to authentication server\n",
-                    buf);
+            fprintf(stderr, "Error: failed to send ""%s""\n", buf);
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }
@@ -38,11 +32,7 @@ int write_buf_SIGPIPE(int fd, char* buf) {
 
         if (n_sent == -1) { /* Err */
             if (errno != EPIPE) {
-                fprintf(stderr,
-                        "Error: failed to send "
-                        "%s"
-                        " to authentication server\n",
-                        buf);
+                fprintf(stderr, "Error: failed to send ""%s""\n", buf);
                 fprintf(stderr, "Error code: %d\n", errno);
                 exit(1);
             } else {
@@ -66,7 +56,7 @@ int read_buf(int fd, char* buf, int bufsize) {
         n_rec = read(fd, buf, bufsize);
 
         if (n_rec == -1) { /* Err */
-            fprintf(stderr, "Error: failed to read message from authentication server\n");
+            fprintf(stderr, "Error: failed to read message\n");
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }

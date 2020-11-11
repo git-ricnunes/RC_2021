@@ -103,7 +103,9 @@ int checkOpWithFile(char opOut) {
  * Comment Template
  **/
 
-void structChecker(struct user_st *arr_user) {
+void structChecker(int verboseMode, struct user_st *arr_user) {
+    if (!flagVerboseMode)
+        return;
     printf("\n--------------------------- Authentication Database:  ----------------------------------------\n");
     printf(" Number of users: %d\n", numUsers);
     for (int j = 0; j < numUsers; j++) {
@@ -159,26 +161,6 @@ int checkReqErr(char *tcp_buffer) {
  * TODO
  * 
  **/
-
-int udpProtocol(char *tcp_buffer) {
-    int result = 0;
-    int num_tokens = 0;
-    char testBuffer[30];
-    char *token;
-
-    strcpy(testBuffer, tcp_buffer);
-    token = strtok(testBuffer, " ");
-
-    while (token != NULL) {
-        num_tokens++;
-        token = strtok(NULL, "\n");
-    }
-
-    if (num_tokens != 5)
-        result = 1;
-
-    return result;
-}
 
 /**
  * Comment Template
@@ -281,7 +263,7 @@ int main(int argc, char *argv[]) {
 
     sprintf(logMessage, "AS server started at %s\nCurrently listening in port %s for UDP and TCP connections.\n", hostname, portAS);
 
-    printf("%s\n%s", verboseMode == 1 ? "Verbose mode On!\n" : "Verbose mode Off!\n", logMessage);
+    printf("%s%s", verboseMode == 1 ? "Verbose mode On!\n" : "Verbose mode Off!\n", logMessage);
 
     fp = fopen(DEFAULT_FILE_FOLDER, "w");
     fprintf(fp, "%s", logMessage);
@@ -377,8 +359,6 @@ int main(int argc, char *argv[]) {
         char msg[128] = "";
         char buffer[128] = "";
 
-        structChecker(arr_user);
-
         retval = select(maxfd + 1, &rfds, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)NULL);
         if (maxfd <= 0)
             exit(1);
@@ -406,6 +386,7 @@ int main(int argc, char *argv[]) {
                 sscanf(buffer, "%s %s %s %s %s", op, user, pass, pdIP, pdPort);
 
                 verboseLogger(verboseMode, buffer, "I", "Y", "UDP");
+                structChecker(verboseMode, arr_user);
 
                 if (strcmp(op, "REG") == 0) {
                     if (strlen(user) == 5 && strlen(pass) == 8 && strcmp(pdIP, "") != 0 && strcmp(pdPort, "") != 0) {
@@ -414,7 +395,8 @@ int main(int argc, char *argv[]) {
                         int userUpdate = 0;
 
                         for (int i = 0; i < numUsers; i++) {
-                            if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0) {
+                            if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0 &&
+                                strcmp(arr_user[i].pdIp, "") == 0) {
                                 userUpdate = 1;
                                 strcpy(arr_user[i].uid, user);
                                 strcpy(arr_user[i].pass, pass);
@@ -425,7 +407,7 @@ int main(int argc, char *argv[]) {
                                 sprintf(msg, "RRG OK\n");
 
                                 break;
-                            } else {
+                            } else if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) != 0) {
                                 userUpdate = -1;
                                 sprintf(msg, "RRG NOK\n");
                             }
@@ -519,6 +501,7 @@ int main(int argc, char *argv[]) {
                     sprintf(msg, "ERR\n");
                 }
                 verboseLogger(verboseMode, msg, "O", "Y", "UDP");
+                structChecker(verboseMode, arr_user);
                 ns = sendto(fds, msg, strlen(msg), 0, (struct sockaddr *)&addr, addrlen);
             } else {
                 for (int fd_id = 0; fd_id < tcpFdNumUsers; fd_id++) {
@@ -529,13 +512,13 @@ int main(int argc, char *argv[]) {
                         char user[6] = "";
                         char arg1[9] = "";
                         char arg2[10] = "";
-                        char arg3[10] = "";
+                        char arg3[100] = "";
                         char status[10] = "";
                         int uindex = 0;
 
                         n = read_buf(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
                         verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
-
+                        structChecker(verboseMode, arr_user);
                         sscanf(tcp_buffer, "%s %s %s %s %s", op, user, arg1, arg2, arg3);
 
                         struct user_st st_u;
@@ -575,12 +558,16 @@ int main(int argc, char *argv[]) {
                                 char VC[5];
                                 sprintf(VC, "%d%d%d%d", rand() % 9, rand() % 9, rand() % 9, rand() % 9);
 
-                                sprintf(udp_msg, "VLC %s %s %s %s\n", user, VC, arg2, arg3);
+                                if (checkOpWithFile(arg2[0]) == 0)
+                                    sprintf(udp_msg, "VLC %s %s %s\n", user, VC, arg2);
+                                else
+                                    sprintf(udp_msg, "VLC %s %s %s %s\n", user, VC, arg2, arg3);
 
                                 char *fileName = arg3;
                                 errcode = getaddrinfo(st_u.pdIp, st_u.pdPort, &hints, &res);
 
                                 verboseLogger(verboseMode, udp_msg, "O", "Y", "UDP");
+                                structChecker(verboseMode, arr_user);
                                 n = sendto(fd, udp_msg, strlen(udp_msg), 0, res->ai_addr, res->ai_addrlen);
 
                                 memset(udp_msg, 0, strlen(udp_msg));
@@ -591,7 +578,7 @@ int main(int argc, char *argv[]) {
 
                                 sscanf(udp_msg, "%s %s", op, status);
                                 verboseLogger(verboseMode, udp_msg, "I", "Y", "UDP");
-
+                                structChecker(verboseMode, arr_user);
                                 if (st_u.isLogged == 0) {
                                     sprintf(tcp_msg, "RRQ ELOG\n");
 
@@ -638,12 +625,12 @@ int main(int argc, char *argv[]) {
                                     break;
                                 }
                             }
-
-                            if (strcmp(st_r.VC, arg2) == 0 && st_r.vcUsed == 0) {
+                            char vc[5]= st_r.VC);
+                            if (strcmp(vc, arg2) == 0 && st_r.vcUsed == 0) {
                                 strcpy(tidString, st_r.TID);
                                 st_r.vcUsed = 1;
                             } else {
-                                sprintf(tidString, "%d\0", 0);
+                                sprintf(tidString, "%d", 0);
                             }
                             sprintf(tcp_msg, "RAU %s\n", tidString);
                         } else {
@@ -654,8 +641,10 @@ int main(int argc, char *argv[]) {
 
                         if (n == -1) {
                             processSIGPIPE(tcp_accept_fd, fd_id);
-                        } else
+                        } else {
                             verboseLogger(verboseMode, tcp_msg, "O", "Y", "TCP");
+                            structChecker(verboseMode, arr_user);
+                        }
                     }
                 }
             }
