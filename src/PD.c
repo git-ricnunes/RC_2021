@@ -16,6 +16,7 @@
 #define DEFAULT_PORT_AS "58011"
 #define DEFAULT_IP_AS "127.0.0.1"
 #define DEFAULT_IP_PD "127.0.0.1"
+#DEFINE TIMEOUT_DEFAULT = 300
 
 #define max(A, B) ((A) >= (B) ? (A) : (B))
 
@@ -28,7 +29,7 @@ struct timeval tv;
 
 int main(int argc, char *argv[]) {
     // Variables
-    tv.tv_sec = 6;
+    tv.tv_sec = TIMEOUT_DEFAULT;
     tv.tv_usec = 0;
     char portPD[6] = DEFAULT_PORT_PD;
     char portAS[6] = DEFAULT_PORT_AS;
@@ -144,7 +145,6 @@ int main(int argc, char *argv[]) {
     hints.ai_socktype = SOCK_DGRAM;
 
     errcode = getaddrinfo(ipAS, portAS, &hints, &res);
-    setsockopt(fds, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
     while (1) {
         // setting the
@@ -159,7 +159,10 @@ int main(int argc, char *argv[]) {
         char buffer[128];
 
         retval = select(maxfd + 1, &rfds, (fd_set *)NULL, (fd_set *)NULL, &tv);
-        if (maxfd <= 0) exit(1);
+        if (retval = 0) {
+            printf("Error: UDP  socket timeout\n");
+            exit(0);
+        }
 
         for (; retval; retval--) {
             if (FD_ISSET(0, &rfds)) {
