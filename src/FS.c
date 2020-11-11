@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
-
+#include <tcpFiles.h>
 #include "msg.h"
 #include "udpTimeout.h"
 
@@ -218,56 +218,16 @@ void RetrieveFile(char *filename, int fd){
 	char file_size[F_SIZE];
 	int filesize = checkSizeFile(filename);
 	FILE *fp;
-	int n_sent, n_rec;
-	int n_sum = 0;
 	sprintf(file_size, "%d", filesize);
 	strcpy(msg, "RRT OK ");
     strcat(msg, file_size);
     strcat(msg, " ");
 	fp = fopen(filename, "r");
 	fseek(fp, 0, SEEK_SET);
-	n_sent = write(fd, msg, strlen(msg));
-	if (n_sent == -1) { /* Err */
-        if (errno != EPIPE) {
-            fprintf(stderr, "Error: failed to send %s to authentication server\n", msg);
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
-        }
-        else{
-        	fprintf(stderr, "Error: failed to send message to authentication server\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
-        }
-    }
+	n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
 	memset(msg, 0, sizeof(msg));
-	while(1){
-		n = fread(msg, 1, sizeof(msg), fp);
-		if (n == -1) { /* Err */
-            fprintf(stderr, "Error: failed to read message from authentication server\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
-        }
-		n_sum += n;
-		n_sent = write(fd, msg, strlen(msg));
-		if (n_sent == -1) { /* Err */
-            if (errno != EPIPE) {
-            	fprintf(stderr, "Error: failed to send %s to authentication server\n", msg);
-            	fprintf(stderr, "Error code: %d\n", errno);
-            	exit(1);
-        	}
-        	else{
-        		fprintf(stderr, "Error: failed to send message to authentication server\n");
-            	fprintf(stderr, "Error code: %d\n", errno);
-            	exit(1);
-        	}
-        }
-        memset(msg, 0, sizeof(msg));
-		//ficheiro ja foi todo lido
-        if (n_sum == filesize){
-        	fclose(fp);
-        	return;
-        }
-	}
+	sendfile(fd, fp, filesize, msg, sizeof(msg));
+	fclose(fp);
 }
 
 // Directory Listing function

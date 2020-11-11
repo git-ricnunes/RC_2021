@@ -11,7 +11,7 @@ all:
 	$(CC) $(CDFLAGS) pd src/PD.c src/udpTimeout.c
 	$(CC) $(CDFLAGS) User src/User.c src/msg.c src/tcpFiles.c
 	$(CC) $(CDFLAGS) AS src/AS.c src/msg.c src/udpTimeout.c
-	$(CC) $(CDFLAGS) FS src/FS.c src/msg.c src/udpTimeout.c
+	$(CC) $(CDFLAGS) FS src/FS.c src/msg.c src/udpTimeout.c src/tcpFiles.c
 pd: 
 	$(CC) $(CDFLAGS) pd src/PD.c
 User:
@@ -21,6 +21,6 @@ AS:
 	$(MKDIR_LOG)
 	$(CC) $(CDFLAGS) AS src/AS.c src/msg.c src/udpTimeout.c
 FS: 
-	$(CC) $(CDFLAGS) FS src/FS.c src/msg.c src/udpTimeout.c
+	$(CC) $(CDFLAGS) FS src/FS.c src/msg.c src/udpTimeout.c src/tcpFiles.c
 clean:
 	rm -rf $(OBJS)
