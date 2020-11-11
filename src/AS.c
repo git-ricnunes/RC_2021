@@ -414,7 +414,8 @@ int main(int argc, char *argv[]) {
                         int userUpdate = 0;
 
                         for (int i = 0; i < numUsers; i++) {
-                            if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0) {
+                            if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0 &&
+                                strcmp(arr_user[i].pdIp, "") == 0) {
                                 userUpdate = 1;
                                 strcpy(arr_user[i].uid, user);
                                 strcpy(arr_user[i].pass, pass);
@@ -425,7 +426,8 @@ int main(int argc, char *argv[]) {
                                 sprintf(msg, "RRG OK\n");
 
                                 break;
-                            } else {
+                            } else if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) != 0 &&
+                                       strcmp(arr_user[i].pdIp, "") == 0) {
                                 userUpdate = -1;
                                 sprintf(msg, "RRG NOK\n");
                             }
@@ -529,7 +531,7 @@ int main(int argc, char *argv[]) {
                         char user[6] = "";
                         char arg1[9] = "";
                         char arg2[10] = "";
-                        char arg3[10] = "";
+                        char arg3[100] = "";
                         char status[10] = "";
                         int uindex = 0;
 
@@ -643,7 +645,7 @@ int main(int argc, char *argv[]) {
                                 strcpy(tidString, st_r.TID);
                                 st_r.vcUsed = 1;
                             } else {
-                                sprintf(tidString, "%d\0", 0);
+                                sprintf(tidString, "%d", 0);
                             }
                             sprintf(tcp_msg, "RAU %s\n", tidString);
                         } else {
