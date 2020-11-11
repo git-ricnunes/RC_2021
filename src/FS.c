@@ -147,7 +147,7 @@ int checkSizeFile(char *filename){
 
 }
 // PARA COMANDO UPLOAD
-int write_read_file(int fd, char* buf, char* file_path, int bufstart, int bufsize, int filesize){
+void upload_file(int fd, char* buf, char* file_path, int bufstart, int bufsize, int filesize){
     int n_sum = 0;
     int n_rec;
     int n;
@@ -155,22 +155,25 @@ int write_read_file(int fd, char* buf, char* file_path, int bufstart, int bufsiz
     fp = fopen(file_path, "a");
 
     while (1) {
-    	n = fwrite(buf + bufstart, 1, strlen(buf) - bufstart, fp);
-    	if (n == -1) { /* Err */
-            fprintf(stderr, "Error: failed to write message for file\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
+    	//significa que ja ha conteudo do ficheiro para ser escrito
+    	if (bufstart < MAX_BYTES){
+    		n = fwrite(buf + bufstart, 1, strlen(buf) - bufstart, fp);
+    		if (n == -1) { /* Err */
+            	fprintf(stderr, "Error: failed to write message for file\n");
+            	fprintf(stderr, "Error code: %d\n", errno);
+            	exit(1);
+        	}
+        	n_sum += n;
         }
-        n_sum += n;
         //ficheiro ja foi todo lido
         if (n_sum == filesize){
         	fclose(fp);
-        	return n_sum;
+        	return;
         }
 
         memset(buf, 0, bufsize);
         bufstart = 0;
-        n_rec = read(fd, buf, bufsize);
+        n_rec = read_buf(fd, buf, bufsize);
 
         if (n_rec == -1) { /* Err */
             fprintf(stderr, "Error: failed to read message from authentication server\n");
@@ -729,7 +732,7 @@ int main(int argc, char *argv[]) {
                                 //cria file temporario
                                 else {
                                     strcat(DIR_PATH, "_TMP");
-                                    n = write_read_file(i, tcp_buffer, DIR_PATH, bytes_data, sizeof(tcp_buffer), atoi(FileSize));
+                                    upload_file(i, tcp_buffer, DIR_PATH, bytes_data, sizeof(tcp_buffer), atoi(FileSize));
                                 }
                             } else if (errno == ENOENT) {
                                 //cria directory temp e file temp
@@ -744,7 +747,7 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 strcat(DIR_PATH, "_TMP");
-                                n = write_read_file(i, tcp_buffer, DIR_PATH, bytes_data, sizeof(tcp_buffer), atoi(FileSize));
+                                upload_file(i, tcp_buffer, DIR_PATH, bytes_data, sizeof(tcp_buffer), atoi(FileSize));
                             }
                             closedir(d);
                             setFD_TCP(UID, TID, "U", reply_msg, FileName, i);
