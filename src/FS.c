@@ -179,39 +179,6 @@ int write_read_file(int fd, char* buf, char* file_path, int bufstart, int bufsiz
         }
     }
 }
-// PARA COMANDO RETRIEVE
-int read_write(int fd, char* buf, char* file_path, int bufstart, int bufsize, int filesize) {
-    int n_sum = 0;
-    int n_rec;
-    int n;
-    FILE *fp;
-    fp = fopen(file_path, "a");
-
-    while (1) {
-    	n = fwrite(buf + bufstart, 1, strlen(buf) - bufstart, fp);
-    	if (n == -1) { /* Err */
-            fprintf(stderr, "Error: failed to write message for file\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
-        }
-        n_sum += n;
-        //ficheiro ja foi escrito
-        if (n_sum == filesize){
-        	fclose(fp);
-        	return n_sum;
-        }
-
-        memset(buf, 0, bufsize);
-        bufstart = 0;
-        n_rec = read(fd, buf, bufsize);
-
-        if (n_rec == -1) { /* Err */
-            fprintf(stderr, "Error: failed to read message from authentication server\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
-        }
-    }
-}
 
 void RetrieveFile(char *filename, int fd){
 	char msg[100] = "";
