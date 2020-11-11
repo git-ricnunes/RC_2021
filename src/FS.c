@@ -242,7 +242,7 @@ void RetrieveFile(char *filename, int fd){
 	memset(msg, 0, sizeof(msg));
 	while(1){
 		n = fread(msg, 1, sizeof(msg), fp);
-		if (n_rec == -1) { /* Err */
+		if (n == -1) { /* Err */
             fprintf(stderr, "Error: failed to read message from authentication server\n");
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
