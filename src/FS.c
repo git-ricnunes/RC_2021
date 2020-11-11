@@ -147,7 +147,7 @@ int checkSizeFile(char *filename){
 
 }
 // PARA COMANDO UPLOAD
-int write_read_file(int fd, char* buf, char* file_path, int bufstart, int bufsize, int filesize) {
+int write_read_file(int fd, char* buf, char* file_path, int bufstart, int bufsize, int filesize){
     int n_sum = 0;
     int n_rec;
     int n;
