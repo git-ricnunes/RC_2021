@@ -577,7 +577,10 @@ int main(int argc, char *argv[]) {
                                 char VC[5];
                                 sprintf(VC, "%d%d%d%d", rand() % 9, rand() % 9, rand() % 9, rand() % 9);
 
-                                sprintf(udp_msg, "VLC %s %s %s %s\n", user, VC, arg2, arg3);
+                                if (checkOpWithFile(arg2[0]) == 0)
+                                    sprintf(udp_msg, "VLC %s %s %s\n", user, VC, arg2);
+                                else
+                                    sprintf(udp_msg, "VLC %s %s %s %s\n", user, VC, arg2, arg3);
 
                                 char *fileName = arg3;
                                 errcode = getaddrinfo(st_u.pdIp, st_u.pdPort, &hints, &res);
