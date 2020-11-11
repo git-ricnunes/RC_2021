@@ -356,6 +356,8 @@ int main(int argc, char *argv[]) {
     act.sa_handler = SIG_IGN;
     signal(SIGPIPE, SIG_IGN);
 
+    setTimeoutUDP(fd, TIMEOUT_DEFAULT);
+
     while (1) {
         // setting the select vars
         FD_ZERO(&rfds);
@@ -363,14 +365,6 @@ int main(int argc, char *argv[]) {
         FD_SET(fd, &rfds);
         FD_SET(fds, &rfds);
         FD_SET(0, &rfds);
-
-        if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-            perror("Error");
-        }
-
-        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
-            perror("Error");
-        }
 
         maxfd1 = max(tcp_fd, fds);
         maxfd = max(maxfd1, fd);
@@ -592,12 +586,8 @@ int main(int argc, char *argv[]) {
                                 memset(udp_msg, 0, strlen(udp_msg));
 
                                 n = recvfrom(fd, udp_msg, sizeof(udp_msg), 0, (struct sockaddr *)&addr, &addrlen);
-
-                                if (n < 0) {
-                                    printf("Error: Timeout Expired.\n");
-                                    printf("Error code: %d\n", errno);
+                                if (checkTimeoutUdp(n) == -1)
                                     break;
-                                }
 
                                 sscanf(udp_msg, "%s %s", op, status);
                                 verboseLogger(verboseMode, udp_msg, "I", "Y", "UDP");
