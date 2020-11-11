@@ -11,12 +11,13 @@
 #include <unistd.h>
 
 #include "msg.h"
+#include "udpTimeout.h"
 
 #define DEFAULT_PORT_PD "57011"
 #define DEFAULT_PORT_AS "58011"
 #define DEFAULT_IP_AS "127.0.0.1"
 #define DEFAULT_IP_PD "127.0.0.1"
-#DEFINE TIMEOUT_DEFAULT = 300
+#define TIMEOUT_DEFAULT 10
 
 #define max(A, B) ((A) >= (B) ? (A) : (B))
 
@@ -25,12 +26,10 @@ ssize_t n, ns;
 socklen_t addrlen;
 struct addrinfo hints, *res;
 struct sockaddr_in addr;
-struct timeval tv;
 
 int main(int argc, char *argv[]) {
     // Variables
-    tv.tv_sec = TIMEOUT_DEFAULT;
-    tv.tv_usec = 0;
+
     char portPD[6] = DEFAULT_PORT_PD;
     char portAS[6] = DEFAULT_PORT_AS;
     char ipPD[18] = DEFAULT_IP_PD;
@@ -146,6 +145,8 @@ int main(int argc, char *argv[]) {
 
     errcode = getaddrinfo(ipAS, portAS, &hints, &res);
 
+    setTimeoutUDP(fd, TIMEOUT_DEFAULT);
+
     while (1) {
         // setting the
         FD_ZERO(&rfds);
@@ -158,17 +159,18 @@ int main(int argc, char *argv[]) {
         char msg[128] = "";
         char buffer[128];
 
-        retval = select(maxfd + 1, &rfds, (fd_set *)NULL, (fd_set *)NULL, &tv);
-        if (retval = 0) {
+        retval = select(maxfd + 1, &rfds, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)NULL);
+        /*if (retval = 0) {
             printf("Error: UDP  socket timeout\n");
             exit(0);
-        }
+        }*/
 
         for (; retval; retval--) {
             if (FD_ISSET(0, &rfds)) {
                 fgets(buffer, 128, stdin);
 
                 char op[4];
+                char status[4];
 
                 sscanf(buffer, "%s %s %s", op, user, pass);
 
@@ -183,31 +185,27 @@ int main(int argc, char *argv[]) {
                     strcat(msg, portPD);
                     strcat(msg, "\n");
 
-                    n = sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen);
-
                 } else if (strcmp(op, "exit") == 0) {
                     strcat(msg, "UNR ");
                     strcat(msg, user);
                     strcat(msg, " ");
                     strcat(msg, pass);
                     strcat(msg, "\n");
-                    n = sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen);
 
                 } else {
                     write(1, "Invalid input\n", 14);
+                    break;
                 }
 
-            } else if (FD_ISSET(fd, &rfds)) {
-                char op[4];
-                char status[4];
-
-                n = recvfrom(fd, buffer, 128, 0, (struct sockaddr *)&addr, &addrlen);
-
-                if (n < 0) {
-                    printf("Error: Timeout Expired.\n");
-                    printf("Error code: %d\n", errno);
+                n = sendto(fd, msg, strlen(msg), 0, res->ai_addr, res->ai_addrlen);
+                if (checkTimeoutUdp(n) == -1)
                     exit(1);
-                }
+
+                memset(msg, 0, strlen(msg));
+
+                n = recvfrom(fd, buffer, sizeof(msg), 0, (struct sockaddr *)&addr, &addrlen);
+                if (checkTimeoutUdp(n) == -1)
+                    exit(1);
 
                 sscanf(buffer, "%s %s", op, status);
 

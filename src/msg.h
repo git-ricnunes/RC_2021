@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 void write_buf(int fd, char* buf);
-void write_buf_SIGPIPE(int fd, char* buf);
+int write_buf_SIGPIPE(int fd, char* buf);
 int read_buf(int fd, char* buf, int bufsize);
 
 #endif

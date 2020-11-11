@@ -12,10 +12,14 @@
 #include <unistd.h>
 
 #include "msg.h"
+#include "udpTimeout.h"
+
 #define DEFAULT_PORT_AS "58011"
 #define max(A, B) ((A) >= (B) ? (A) : (B))
 #define MAX_NUM_U 100
 #define DEFAULT_FILE_FOLDER "./Log/AsLog.txt"
+#define TIMEOUT_DEFAULT 10
+
 int fds, fd, tcp_fd, tcp_accept_fd, errcode;
 ssize_t ns, n;
 socklen_t addrlen;
@@ -23,6 +27,8 @@ struct addrinfo hints, *res;
 struct addrinfo hints_client_udp, *res_client_udp;
 struct sockaddr_in addr;
 struct sigaction act;
+struct timeval tv;
+
 char buffer[128];
 char tcp_buffer[128];
 char tcp_msg[128];
@@ -228,6 +234,7 @@ void processSIGPIPE(int tcpAcceptFd, int fdId) {
 }
 
 int main(int argc, char *argv[]) {
+    FILE *fp;
     char portAS[6] = DEFAULT_PORT_AS;
     int verboseMode = 0;
     fd_set rfds;
@@ -235,8 +242,10 @@ int main(int argc, char *argv[]) {
     struct user_st arr_user[MAX_NUM_U];
     char hostname[1024];
     char logMessage[1000];
+
     srand(time(NULL));
-    FILE *fp;
+    tv.tv_sec = TIMEOUT_DEFAULT;
+    tv.tv_usec = 0;
 
     addrlen = sizeof(addr);
 
@@ -355,6 +364,14 @@ int main(int argc, char *argv[]) {
         FD_SET(fds, &rfds);
         FD_SET(0, &rfds);
 
+        if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+            perror("Error");
+        }
+
+        if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0) {
+            perror("Error");
+        }
+
         maxfd1 = max(tcp_fd, fds);
         maxfd = max(maxfd1, fd);
 
@@ -403,8 +420,7 @@ int main(int argc, char *argv[]) {
                         int userUpdate = 0;
 
                         for (int i = 0; i < numUsers; i++) {
-                            printf("t:%d %s %s\n", strcmp(arr_user[i].uid, user), arr_user[i].uid, user);
-                            if (strcmp(arr_user[i].uid, user) == 0) {
+                            if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0) {
                                 userUpdate = 1;
                                 strcpy(arr_user[i].uid, user);
                                 strcpy(arr_user[i].pass, pass);
@@ -412,7 +428,12 @@ int main(int argc, char *argv[]) {
                                 strcpy(arr_user[i].pdPort, pdPort);
                                 arr_user[i].isLogged = 0;
                                 arr_user[i].numreq = 0;
+                                sprintf(msg, "RRG OK\n");
+
                                 break;
+                            } else {
+                                userUpdate = -1;
+                                sprintf(msg, "RRG NOK\n");
                             }
                         }
 
@@ -423,12 +444,11 @@ int main(int argc, char *argv[]) {
                             strcpy(st_u.pdPort, pdPort);
                             st_u.isLogged = 0;
                             st_u.numreq = 0;
-
+                            sprintf(msg, "RRG OK\n");
                             arr_user[numUsers] = st_u;
                             numUsers++;
                         }
 
-                        sprintf(msg, "RRG OK\n");
                     } else {
                         sprintf(msg, "RRG NOK\n");
                     }
@@ -439,7 +459,6 @@ int main(int argc, char *argv[]) {
 
                     for (int i = 0; i < MAX_NUM_U; i++) {
                         if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0) {
-                            strcpy(arr_user[i].pass, "");
                             strcpy(arr_user[i].pdIp, "");
                             strcpy(arr_user[i].pdPort, "");
                             arr_user[i].isLogged = 0;
@@ -573,6 +592,13 @@ int main(int argc, char *argv[]) {
                                 memset(udp_msg, 0, strlen(udp_msg));
 
                                 n = recvfrom(fd, udp_msg, sizeof(udp_msg), 0, (struct sockaddr *)&addr, &addrlen);
+
+                                if (n < 0) {
+                                    printf("Error: Timeout Expired.\n");
+                                    printf("Error code: %d\n", errno);
+                                    break;
+                                }
+
                                 sscanf(udp_msg, "%s %s", op, status);
                                 verboseLogger(verboseMode, udp_msg, "I", "Y", "UDP");
 
