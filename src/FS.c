@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
-#include <tcpFiles.h>
+#include "tcpFiles.h"
 #include "msg.h"
 #include "udpTimeout.h"
 
@@ -183,6 +183,7 @@ int write_read_file(int fd, char* buf, char* file_path, int bufstart, int bufsiz
 void RetrieveFile(char *filename, int fd){
 	char msg[100] = "";
 	char file_size[F_SIZE];
+	int n_sent;
 	int filesize = checkSizeFile(filename);
 	FILE *fp;
 	sprintf(file_size, "%d", filesize);
@@ -191,9 +192,9 @@ void RetrieveFile(char *filename, int fd){
     strcat(msg, " ");
 	fp = fopen(filename, "r");
 	fseek(fp, 0, SEEK_SET);
-	n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
+	n_sent = write_buf_SIGPIPE(fd, msg);
 	memset(msg, 0, sizeof(msg));
-	sendfile(fd, fp, filesize, msg, sizeof(msg));
+	send_file(fd, fp, filesize, msg, sizeof(msg));
 	fclose(fp);
 }
 
