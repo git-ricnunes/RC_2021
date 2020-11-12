@@ -43,6 +43,11 @@ socklen_t addrlenAS, addrlenFS;
 struct addrinfo hintsAS, *resAS, hintsFS, *resFS;
 struct sockaddr_in addrAS, addrFS;
 
+void unexpected_protocol(){
+	fprintf(stderr, "ERR\n");
+	exit(1);
+}
+
 int main(int argc, char *argv[]){
 
 	char ipAS[IP_SIZE] = DEFAULT_ASIP;
@@ -103,7 +108,6 @@ int main(int argc, char *argv[]){
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
 
-	FILE *fp;
 	char buffer[BUFFER_SIZE];
 	char fbuffer[FBUFFER_SIZE];
 	char msg[BUFFER_SIZE];
@@ -113,8 +117,6 @@ int main(int argc, char *argv[]){
 	char rid[RID_SIZE] = "";
 	char tid[TID_SIZE] = "0";
 	char fname[FNAME_SIZE] = "";
-	int fsize;
-	char data[FBUFFER_SIZE];
 	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
@@ -179,28 +181,7 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 			strcpy(fname, token_list[1]);
-			fp = fopen(fname, "r");
-			if (!fp){
-				fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
-				fprintf(stderr, "Error code: %d\n", errno);
-				exit(1);
-			}
-			if (fseek(fp, 0L, 2) == -1){
-				fprintf(stderr, "Error: failed to position file ""%s"" indicator\n", fname);
-				fprintf(stderr, "Error code: %d\n", errno);
-				exit(1);
-			}
-			fsize = ftell(fp);
-			if (fsize == -1){
-				fprintf(stderr, "Error: failed to read file ""%s"" size\n", fname);
-				fprintf(stderr, "Error code: %d\n", errno);
-				exit(1);
-			}
-			else if (fsize >= 1000000000){
-				fprintf(stderr, "Error: file ""%s"" size too big\n", fname);
-				exit(1);
-			}
-			sprintf(msg, "%s %s %s %s %d ", code, uid, tid, fname, fsize);
+			sprintf(msg, "%s %s %s %s ", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "delete") || !strcmp(token_list[0], "d")) && num_tokens == 2){ /* DEL UID TID Fname */
@@ -277,10 +258,8 @@ int main(int argc, char *argv[]){
 			printf("Connected to File Server ""%s"" in port %s\n", ipFS, portFS);
 
 			write_buf(fdFS, msg);
-			if (!strcmp(code, "UPL")){
-				send_file(fdFS, fp, fsize, data, FBUFFER_SIZE);
-				fclose(fp);
-			}
+			if (!strcmp(code, "UPL"))
+				send_file(fdFS, fname);
 
 			if (!strcmp(code, "LST")){
 				//rlst stdout
