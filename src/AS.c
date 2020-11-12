@@ -121,6 +121,36 @@ int checkOpWithFile(char opOut) {
 }
 
 /**
+ * Funcao checkReqErr
+ *  Descricao: 
+ *      Funcao auxiliar que permite verificar se numero de elementos da mensagem
+ *      esta de acordo com o protocolo
+ * 
+ *  Argumentos : 
+ *      tcp_buffer -> string com a mensagem recebida pelo AS
+ **/
+
+int checkReqErr(char *tcp_buffer) {
+    int result = 0;
+    int num_tokens = 0;
+    char testBuffer[30];
+    char *token;
+
+    strcpy(testBuffer, tcp_buffer);
+    token = strtok(testBuffer, " ");
+
+    while (token != NULL) {
+        num_tokens++;
+        token = strtok(NULL, "\n");
+    }
+
+    if (num_tokens != 5)
+        result = 1;
+
+    return result;
+}
+
+/**
  * Funcao structChecker
  *  Descricao: 
  *      Funcao util na monitorizacao do estado do servidor AS.
@@ -128,8 +158,11 @@ int checkOpWithFile(char opOut) {
  *      pedidos efetuados pelos mesmos
  * 
  *  Argumentos : 
- *      verboseMode -> variavel recebedia no inicio do programa que indica
- *                     se 
+ *      verboseMode -> variavel recebida no inicio do programa que indica
+ *                     se imprime a informação.
+ * 
+ *  Retorno : 
+ *      valor inteiro que representa verdadeiro(1) ou falso (0)
  **/
 
 void structChecker(int verboseMode, struct user_st *arr_user) {
@@ -161,31 +194,41 @@ void structChecker(int verboseMode, struct user_st *arr_user) {
 }
 
 /**
- * Comment Template
+ * Funcao processSIGPIPE
+ *  Descricao: 
+ *      Funcao serve para terminar uma ligação tcp cancelada pelo user. 
+ *      Depois de cancelada a ligação atualiza o array de file descriptors tcp.
+ *      
+ * 
+ *  Argumentos : 
+ *      tcpAcceptFd -> file descriptor do socket que foi terminado
+ *      fdId -> posição do file descriptor no array de file descriptors tcp
  **/
 
-int checkReqErr(char *tcp_buffer) {
-    int result = 0;
-    int num_tokens = 0;
-    char testBuffer[30];
-    char *token;
+void processSIGPIPE(int tcpAcceptFd, int fdId) {
+    close(tcpAcceptFd);
 
-    strcpy(testBuffer, tcp_buffer);
-    token = strtok(testBuffer, " ");
-
-    while (token != NULL) {
-        num_tokens++;
-        token = strtok(NULL, "\n");
+    for (int i = 0; i < tcpFdNumUsers; i++) {
+        if (fdId == i)
+            tcp_fd_array[i] = tcp_fd_array[i + 1];
     }
 
-    if (num_tokens != 5)
-        result = 1;
+    tcpFdNumUsers--;
 
-    return result;
+    printf("User connection closed.\n");
 }
 
 /**
- * Comment Template
+ * Funcao verboseLogger
+ *  Descricao: 
+ *      Funcao auxiliar que prepara e imprime as mensagens recebidas via TCP e UDP.
+ * 
+ *  Argumentos : 
+ *      verboseMode -> Variavel recebida no inicio do programa que indica se imprime a informação.
+ *      buffer -> String com a mensagem recebida pelo AS
+ *      loggerFlag -> Indica se a informação é IN ou OUT 
+ *      fileFlag -> Indica se a informação do log vai ser colocada num ficheiro
+ *      protocol -> Tipo de protocolo de comunicação UDP ou TCP
  **/
 
 void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fileFlag, char *protocol) {
@@ -218,28 +261,8 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
     }
 }
 
-/**
- * Comment Template
- **/
-
-void processSIGPIPE(int tcpAcceptFd, int fdId) {
-    close(tcpAcceptFd);
-
-    int temp_tcp_fd_array[tcpFdNumUsers];
-
-    for (int i = 0; i < tcpFdNumUsers; i++) {
-        if (fdId == i)
-            tcp_fd_array[i] = tcp_fd_array[i + 1];
-    }
-
-    tcpFdNumUsers--;
-
-    printf("User connection closed.\n");
-}
-
 int main(int argc, char *argv[]) {
     FILE *fp;
-    char portAS[6] = DEFAULT_PORT_AS;
     int verboseMode = 0;
     fd_set rfds;
     int maxfd, maxfd1, retval;
@@ -247,6 +270,7 @@ int main(int argc, char *argv[]) {
     char hostname[1024];
     char logMessage[1000];
 
+    char portAS[6] = DEFAULT_PORT_AS;
     srand(time(NULL));
     tv.tv_sec = TIMEOUT_DEFAULT;
     tv.tv_usec = 0;
@@ -276,7 +300,7 @@ int main(int argc, char *argv[]) {
             verboseMode = 1;
         }
     } else {
-        printf("Error in argument setting!\n");
+        printf("Error in arguments!\n");
         return -1;
     }
 
@@ -291,6 +315,7 @@ int main(int argc, char *argv[]) {
     fprintf(fp, "%s", logMessage);
     fclose(fp);
 
+    // cria socket UDP servidor
     if ((fds = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         printf("Error: unable to create udp server socket\n");
         printf("Error code: %d\n", errno);
@@ -313,7 +338,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    // Create the udp client socket
+    // cria socket UDP client
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         printf("Error: unable to create udp client socket\n");
         printf("Error code: %d\n", errno);
@@ -324,7 +349,7 @@ int main(int argc, char *argv[]) {
     hints_client_udp.ai_family = AF_INET;
     hints_client_udp.ai_socktype = SOCK_DGRAM;
 
-    // Create the tcp server socket
+    // cria socket TCP servidor
     if ((tcp_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         printf("Error: unable to create tcp server socket\n");
         printf("Error code: %d\n", errno);
@@ -358,21 +383,21 @@ int main(int argc, char *argv[]) {
 
     memset(&act, 0, sizeof act);
     act.sa_handler = SIG_IGN;
-    signal(SIGPIPE, SIG_IGN);
+    signal(SIGPIPE, SIG_IGN);  // ignora os sigpipe vindos do cliente
 
-    setTimeoutUDP(fd, TIMEOUT_DEFAULT);
+    setTimeoutUDP(fd, TIMEOUT_DEFAULT);  // inicializa os timeouts para os sockets clientes
 
     while (1) {
-        // setting the select vars
+        // inicializa os fds para comunicação UDP e registo de novos users em TCP
         FD_ZERO(&rfds);
         FD_SET(tcp_fd, &rfds);
         FD_SET(fd, &rfds);
         FD_SET(fds, &rfds);
-        FD_SET(0, &rfds);
 
         maxfd1 = max(tcp_fd, fds);
         maxfd = max(maxfd1, fd);
 
+        // inicializa os fds para comunicação TCP com o cliente
         for (int fd_id = 0; fd_id <= tcpFdNumUsers; fd_id++) {
             FD_SET(tcp_fd_array[fd_id], &rfds);
             maxfd = max(maxfd, tcp_fd_array[fd_id]);
@@ -387,6 +412,8 @@ int main(int argc, char *argv[]) {
 
         for (; retval; retval--) {
             if (FD_ISSET(tcp_fd, &rfds)) {
+                // se receber novo registo cliente tcp, cria um novo fd a ser processado pelo select
+
                 if ((tcp_accept_fd = accept(tcp_fd, (struct sockaddr *)&addr, &addrlen)) == -1) {
                     printf("%s %s\n", "error accept:", strerror(errno));
                     close(tcp_fd);
@@ -397,7 +424,8 @@ int main(int argc, char *argv[]) {
                 tcpFdNumUsers++;
 
             } else if (FD_ISSET(fds, &rfds)) {
-                //server udp
+                // informação recebida por parte de um cliente UDP
+
                 char op[5] = "";
                 char user[6] = "";
                 char pass[9] = "";
@@ -410,6 +438,8 @@ int main(int argc, char *argv[]) {
                 verboseLogger(verboseMode, buffer, "I", "Y", "UDP");
                 structChecker(verboseMode, arr_user);
 
+                // processa a mensagem e aplica as regras do protocolo UDP
+
                 if (strcmp(op, "REG") == 0) {
                     if (strlen(user) == 5 && strlen(pass) == 8 && strcmp(pdIP, "") != 0 && strcmp(pdPort, "") != 0) {
                         struct user_st st_u;
@@ -417,6 +447,7 @@ int main(int argc, char *argv[]) {
                         int userUpdate = 0;
 
                         for (int i = 0; i < numUsers; i++) {
+                            // Se for repetição de registo actualiza o par <ip,port> do PD
                             if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0 &&
                                 strcmp(arr_user[i].pdIp, "") == 0) {
                                 userUpdate = 1;
@@ -430,12 +461,14 @@ int main(int argc, char *argv[]) {
 
                                 break;
                             } else if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) != 0) {
+                                // Se for repetição de registo e password estiver errada e retornada erro
                                 userUpdate = -1;
                                 sprintf(msg, "RRG NOK\n");
                             }
                         }
 
                         if (userUpdate == 0) {
+                            // Se for um novo registo PD adiciona a estrutura
                             strcpy(st_u.uid, user);
                             strcpy(st_u.pass, pass);
                             strcpy(st_u.pdIp, pdIP);
@@ -448,12 +481,17 @@ int main(int argc, char *argv[]) {
                         }
 
                     } else {
+                        // Se faltar algum campo na mesangem do protocolo
+                        // ou os campos existentes nao estejam de acordo com o protocolo
                         sprintf(msg, "RRG NOK\n");
                     }
                 } else if (strcmp(op, "UNR") == 0) {
                     struct user_st st_u;
                     int deleteUser = 0;
                     int deleteUserIndex = 0;
+
+                    // Se o registo existir e se as credenciais
+                    // estiverem corretas eliminar o registo da estrutura
 
                     for (int i = 0; i < MAX_NUM_U; i++) {
                         if (strcmp(arr_user[i].uid, user) == 0 && strcmp(arr_user[i].pass, pass) == 0) {
@@ -477,6 +515,7 @@ int main(int argc, char *argv[]) {
                     int uVal = 0;
 
                     for (int i = 0; i <= numUsers; i++) {
+                        // Selecionar o utilizador para o pedido de validacao
                         if (strcmp(arr_user[i].uid, user) == 0) {
                             st_u = arr_user[i];
                             uVal = 1;
@@ -485,8 +524,10 @@ int main(int argc, char *argv[]) {
                     }
 
                     for (int i = 0; i <= st_u.numreq; i++) {
+                        // Se nao existir o user nao procurar o pedido
                         if (uVal == 0)
                             break;
+                        // Seleciona o pedido a fazer validação
                         if (strcmp(st_u.arr_req[i].TID, pass) == 0) {
                             tidVal = 1;
                             st_r = st_u.arr_req[i];
@@ -494,12 +535,17 @@ int main(int argc, char *argv[]) {
                         }
                     }
 
+                    // Se não existir pedido ou utilizador devolve erro
                     if (tidVal == 0) {
                         sprintf(msg, "CNF %s %s E\n", user, pass);
                     } else if (checkOpWithFile(st_r.op[0])) {
+                        // Se for um pedido com argumento opcional envia confirmacao
                         sprintf(msg, "CNF %s %s %c %s\n", user, st_r.TID, st_r.op[0], st_r.fileName);
                     } else {
+                        // Se for um pedido sem argumento opcional
                         if (st_r.op[0] == 'X') {
+                            // Se for um pedido X tem de eliminar todos os registos de pedidos do servidor AS
+                            // envia a confirmação para o FS
                             char tempTID[10];
                             char tempOP;
                             int updateList = 0;
@@ -516,19 +562,26 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                         } else {
+                            // Caso contrario envia confirmacao de pedido sem argumento opcional
                             sprintf(msg, "CNF %s %s %c \n", user, st_r.TID, st_r.op[0]);
                         }
                     }
                 } else {
+                    // Mensagem nao prevista no protocolo UDP
                     sprintf(msg, "ERR\n");
                 }
+
                 verboseLogger(verboseMode, msg, "O", "Y", "UDP");
                 structChecker(verboseMode, arr_user);
+
                 ns = sendto(fds, msg, strlen(msg), 0, (struct sockaddr *)&addr, addrlen);
+
             } else {
+                // Percorre todos os fd para TCP e seleciona um para processar
                 for (int fd_id = 0; fd_id < tcpFdNumUsers; fd_id++) {
                     int tcp_accept_fd = tcp_fd_array[fd_id];
 
+                    // Se o select detetar pedido ao fd selecionado
                     if (FD_ISSET(tcp_accept_fd, &rfds)) {
                         char op[5] = "";
                         char user[6] = "";
@@ -547,6 +600,9 @@ int main(int argc, char *argv[]) {
 
                         struct user_st st_u;
                         strcpy(st_u.uid, "");
+
+                        // Se for um pedido de login verifica se o utilizador esta registado
+                        // e se as credenciais estao corretas
                         if (strcmp(op, "LOG") == 0) {
                             for (int i = 0; i <= numUsers; i++) {
                                 if (strcmp(arr_user[i].uid, user) == 0) {
@@ -556,14 +612,17 @@ int main(int argc, char *argv[]) {
                                 }
                             }
 
-                            if (strcmp(st_u.uid, "") == 0) {
+                            if (strcmp(st_u.uid, "") == 0) {  // Se user nao existir retorna erro
                                 sprintf(tcp_msg, "RLO ERR\n");
-                            } else if (strcmp(st_u.pass, arg1) != 0) {
+
+                            } else if (strcmp(st_u.pass, arg1) != 0) {  // Se a password estiver errada retorna erro
                                 sprintf(tcp_msg, "RLO NOK\n");
-                            } else {
+
+                            } else {  // Se o utilizador existir e a password estiver correta e assinalado como um user que fez login
                                 arr_user[uindex].isLogged = 1;
                                 sprintf(tcp_msg, "RLO OK\n");
                             }
+
                         } else if (strcmp(op, "REQ") == 0) {
                             struct user_st st_u;
                             for (int i = 0; i <= numUsers; i++) {
@@ -575,23 +634,30 @@ int main(int argc, char *argv[]) {
                             }
 
                             if (checkReqErr(tcp_buffer) == 0) {
+                                // Se o pedido estiver mal formatado devolve erro de protocolo
                                 sprintf(tcp_msg, "ERR\n");
                             } else if (strcmp(st_u.uid, "") == 0) {
+                                // Se o utilizador nao existir devolve erro
                                 sprintf(tcp_msg, "RRQ EUSER\n");
                             } else {
                                 char VC[5];
+                                char *fileName = arg3;
+
+                                // Cria um VC com 4 numeros aleatorios
                                 sprintf(VC, "%d%d%d%d", rand() % 9, rand() % 9, rand() % 9, rand() % 9);
 
+                                // Verifica se é um pedido com argumento opcional
                                 if (checkOpWithFile(arg2[0]) == 0)
                                     sprintf(udp_msg, "VLC %s %s %s\n", user, VC, arg2);
                                 else
                                     sprintf(udp_msg, "VLC %s %s %s %s\n", user, VC, arg2, arg3);
 
-                                char *fileName = arg3;
+                                // prepara ligacao ao PD do user selecionado
                                 errcode = getaddrinfo(st_u.pdIp, st_u.pdPort, &hints, &res);
 
                                 verboseLogger(verboseMode, udp_msg, "O", "Y", "UDP");
                                 structChecker(verboseMode, arr_user);
+
                                 n = sendto(fd, udp_msg, strlen(udp_msg), 0, res->ai_addr, res->ai_addrlen);
 
                                 memset(udp_msg, 0, strlen(udp_msg));
@@ -601,18 +667,26 @@ int main(int argc, char *argv[]) {
                                     break;
 
                                 sscanf(udp_msg, "%s %s", op, status);
+
                                 verboseLogger(verboseMode, udp_msg, "I", "Y", "UDP");
                                 structChecker(verboseMode, arr_user);
+
+                                // Protocolo de resposta ao user
                                 if (st_u.isLogged == 0) {
+                                    // se user nao tiver feito login devolve erro para o user
                                     sprintf(tcp_msg, "RRQ ELOG\n");
 
                                 } else if (strcmp(status, "NOK") == 0) {
+                                    // se o PD devolver erro devolve o erro para o user
                                     sprintf(tcp_msg, "RRQ EPD\n");
 
                                 } else if (checkFileOp(arg2, fileName) == 0) {
+                                    // se o pedido estiver mal formatado consoante o tipo de operacao devolve erro para o user
                                     sprintf(tcp_msg, "RRQ EFOP\n");
 
                                 } else {
+                                    // caso contratio actualizar a estrutura dos pedidos para o user
+                                    // e envia resposta ao user
                                     struct request_st st_r;
                                     char tidString[10];
 
@@ -624,11 +698,9 @@ int main(int argc, char *argv[]) {
                                     strcpy(st_r.TID, tidString);
                                     st_r.vcUsed = 0;
                                     st_u.arr_req[st_u.numreq] = st_r;
-
                                     st_u.numreq++;
 
                                     arr_user[uindex] = st_u;
-
                                     sprintf(tcp_msg, "RRQ OK\n");
                                 }
                             }
@@ -636,13 +708,14 @@ int main(int argc, char *argv[]) {
                             struct request_st st_r;
                             char tidString[500];
 
+                            // Verifica se o utilizador que pretende fazer a autorizacao existe
                             for (int i = 0; i <= numUsers; i++) {
                                 if (strcmp(arr_user[i].uid, user) == 0) {
                                     st_u = arr_user[i];
                                     break;
                                 }
                             }
-
+                            // Verifica se tem o pedido que pretende autorizar
                             for (int i = 0; i <= st_u.numreq; i++) {
                                 if (strcmp(st_u.arr_req[i].RID, arg1) == 0) {
                                     st_r = st_u.arr_req[i];
@@ -650,20 +723,30 @@ int main(int argc, char *argv[]) {
                                 }
                             }
                             char vc[5]= st_r.VC);
+                            // Verifica se o codigo de validacao esta correto
+                            // e se nao foi utilizado previamente
+
                             if (strcmp(vc, arg2) == 0 && st_r.vcUsed == 0) {
                                 strcpy(tidString, st_r.TID);
                                 st_r.vcUsed = 1;
                             } else {
                                 sprintf(tidString, "%d", 0);
                             }
+                            // Envia o resultado da validacao do VC
+                            // 0 em caso de VC invalido
+                            // TID em caso de VC valido
+
                             sprintf(tcp_msg, "RAU %s\n", tidString);
                         } else {
                             sprintf(tcp_msg, "ERR\n");
                         }
 
+                        // Envia mensagem para o User
+
                         n = write_buf_SIGPIPE(tcp_accept_fd, tcp_msg);
 
                         if (n == -1) {
+                            // Em caso de erro processa o SIGPIPE
                             processSIGPIPE(tcp_accept_fd, fd_id);
                         } else {
                             verboseLogger(verboseMode, tcp_msg, "O", "Y", "TCP");
@@ -672,6 +755,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
+            // limpa os buffers de memoria
 
             memset(tcp_buffer, 0, strlen(tcp_buffer));
             memset(buffer, 0, strlen(buffer));
@@ -681,7 +765,7 @@ int main(int argc, char *argv[]) {
             memset(msg, 0, strlen(msg));
         }
     }
-
+    // Fecha os recursos utilizados pelas comunicacoes de sockets
     freeaddrinfo(res);
     freeaddrinfo(res_client_udp);
     close(fd);
