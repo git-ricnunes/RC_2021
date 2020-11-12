@@ -108,6 +108,7 @@ int main(int argc, char *argv[]){
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
 
+	FILE * fp;
 	char buffer[BUFFER_SIZE];
 	char fbuffer[FBUFFER_SIZE];
 	char msg[BUFFER_SIZE];
@@ -117,6 +118,7 @@ int main(int argc, char *argv[]){
 	char rid[RID_SIZE] = "";
 	char tid[TID_SIZE] = "0";
 	char fname[FNAME_SIZE] = "";
+	int fsize;
 	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
@@ -259,7 +261,7 @@ int main(int argc, char *argv[]){
 
 			write_buf(fdFS, msg);
 			if (!strcmp(code, "UPL"))
-				send_file(fdFS, fname);
+				send_file(fdFS, fname, SP_IGNORE);
 
 			if (!strcmp(code, "LST")){
 				//rlst stdout

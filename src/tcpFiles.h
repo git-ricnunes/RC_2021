@@ -8,6 +8,7 @@
 #include <errno.h>
 
 #define SP_CHECK 1
+#define SP_IGNORE 0
 #define DATA_SIZE 1024
 
 char data[DATA_SIZE];

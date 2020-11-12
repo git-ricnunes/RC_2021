@@ -61,7 +61,7 @@ int read_buf(int fd, char* buf, int bufsize) {
     int n_rec;
 
     while (1) {
-        n_rec = read(fd, buf, (n_buf - n_sum));
+        n_rec = read(fd, buf, (bufsize - n_sum));
 
         if (n_rec == -1) { /* Err */
             fprintf(stderr, "Error: failed to read message\n");
@@ -85,7 +85,7 @@ int read_buf_LIMIT(int fd, char* buf, int bufsize, int n_lim) {
     int n_rec;
 
     while (1) {
-        n_rec = read(fd, buf, (n_buf - n_sum));
+        n_rec = read(fd, buf, (bufsize - n_sum));
 
         if (n_rec == -1) { /* Err */
             fprintf(stderr, "Error: failed to read message\n");

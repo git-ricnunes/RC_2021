@@ -15,7 +15,7 @@ void send_file(int fd, char *fname, int sp){
 		fprintf(stderr, "Error code: %d\n", errno);
 		exit(1);
 	}
-	fsize = ftell(fp);
+	int fsize = ftell(fp);
 	if (fsize == -1){
 		fprintf(stderr, "Error: failed to read file ""%s"" size\n", fname);
 		fprintf(stderr, "Error code: %d\n", errno);
