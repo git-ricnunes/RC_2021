@@ -30,7 +30,7 @@
 #define RID_SIZE 5
 #define TID_SIZE 5
 #define FNAME_SIZE 25
-#define RRT_SIZE 19
+#define RRT_SIZE 18
 #define STATUS_SIZE 6
 #define LOGGED_IN 1
 #define LOGGED_OUT 0
@@ -114,6 +114,7 @@ int main(int argc, char *argv[]){
 	char tid[TID_SIZE] = "0";
 	char fname[FNAME_SIZE] = "";
 	int fsize;
+	char data[FBUFFER_SIZE];
 	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
@@ -276,17 +277,48 @@ int main(int argc, char *argv[]){
 			printf("Connected to File Server ""%s"" in port %s\n", ipFS, portFS);
 
 			write_buf(fdFS, msg);
-
-			if (!strcmp(code, "UPL"))
-				send_file(fdFS, fp, fsize, fbuffer, FBUFFER_SIZE);
+			if (!strcmp(code, "UPL")){
+				send_file(fdFS, fp, fsize, data, FBUFFER_SIZE);
+				fclose(fp);
+			}
 
 			if (!strcmp(code, "LST")){
 				//rlst stdout
 			}
 			else if (!strcmp(code, "RTV")){
-				//rrtv + stdout
+				n = read_buf_LIMIT(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE);
+				sscanf(fbuffer, "%s %s %d %s", rcode, status, &fsize, data);
+				if (strcmp(rcode, "RRT") || n < (CODE_SIZE + 4)){
+					fprintf(stderr, "ERR\n");
+					exit(1);
+				}
+				else{
+					if (n == (CODE_SIZE + 4)){
+						if (!strcmp(status, "EOF") || !strcmp(status, "NOK") || !strcmp(status, "INV") || !strcmp(status, "ERR")){
+							write(1, "echo: ", 6); write(1, fbuffer, n);
+						}
+						else{
+							fprintf(stderr, "ERR\n");
+							exit(1);
+						}
+					}
+					else if (!strcmp(status, "OK")){
+						write(1, "echo: RRT OK\n", 13);
+						printf("Retrieving ""%s""...\n", fname); //clean up later
+						fp = fopen(fname, "a");
+						if (!fp){
+							fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
+							fprintf(stderr, "Error code: %d\n", errno);
+							exit(1);
+						}
+						recv_file(fdFS, fp, fsize, data, FBUFFER_SIZE);
+						fclose(fp);
+						printf("Done!\n");
+					}
+				}
 			}
 			else{
+				write(1, "echo: ", 6); write(1, fbuffer, n); //check if rcode/status are valid
 				//read_buf rupl, rdel, rrem + stdout
 			}
 
