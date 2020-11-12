@@ -158,18 +158,18 @@ int checkReqErr(char *tcp_buffer) {
  *      pedidos efetuados pelos mesmos
  * 
  *  Argumentos : 
- *      verboseMode -> variavel recebida no inicio do programa que indica
+ *      flagVerboseMode -> variavel recebida no inicio do programa que indica
  *                     se imprime a informação.
  * 
  *  Retorno : 
  *      valor inteiro que representa verdadeiro(1) ou falso (0)
  **/
 
-void structChecker(int verboseMode, struct user_st *arr_user) {
+void structChecker(int flagVerboseMode, struct user_st *arr_user) {
     if (!flagVerboseMode)
         return;
-    printf("\n--------------------------- User DB: ---------------------------\n");
-    printf(" Number of users: %d\n", numUsers);
+    printf("\n###### User DB ######\n");
+    printf("\n Number of users: %d\n", numUsers);
     for (int j = 0; j < numUsers; j++) {
         printf(" User:%s pass:%s PD_ip:%s PD_port:%s isLogged?:%d numRequests:%d\n",
                arr_user[j].uid,
@@ -180,17 +180,18 @@ void structChecker(int verboseMode, struct user_st *arr_user) {
                arr_user[j].numreq);
         if (arr_user[j].numreq > 0) {
             for (int k = 0; k < arr_user[j].numreq; k++) {
-                printf("   ->RID:%s VC:%s OP:%c filename:%s TID:%s \n",
+                printf("   ->RID:%s VC:%s VCused?:%d OP:%c filename:%s TID:%s \n",
                        arr_user[j].arr_req[k].RID,
                        arr_user[j].arr_req[k].VC,
+                       arr_user[j].arr_req[k].vcUsed,
                        arr_user[j].arr_req[k].op[0],
                        arr_user[j].arr_req[k].fileName,
                        arr_user[j].arr_req[k].TID);
             }
-            printf("\n");
         }
     }
-    printf("--------------------------- End User DB: ------------------------\n\n");
+    printf("\n");
+    printf("###### End User DB: ######\n\n");
 }
 
 /**
@@ -205,7 +206,7 @@ void structChecker(int verboseMode, struct user_st *arr_user) {
  *      fdId -> posição do file descriptor no array de file descriptors tcp
  **/
 
-void processSIGPIPE(int tcpAcceptFd, int fdId) {
+void processSIGPIPE(int tcpAcceptFd, int fdId, int flagVerboseMode) {
     close(tcpAcceptFd);
 
     for (int i = 0; i < tcpFdNumUsers; i++) {
@@ -215,7 +216,8 @@ void processSIGPIPE(int tcpAcceptFd, int fdId) {
 
     tcpFdNumUsers--;
 
-    printf("User connection closed.\n");
+    if (flagVerboseMode)
+        printf("User connection closed.\n");
 }
 
 /**
@@ -239,7 +241,7 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
     char logMessage[500];
 
     if (strcmp(loggerFlag, "I") == 0) {
-        sprintf(logMessage, "--> Received %s message from : %s", protocol, buffer);
+        sprintf(logMessage, "--> Received %s message: %s", protocol, buffer);
 
         printf("%s", logMessage);
 
@@ -249,7 +251,7 @@ void verboseLogger(int flagVerboseMode, char *buffer, char *loggerFlag, char *fi
             fclose(fp);
         }
     } else if (strcmp(loggerFlag, "O") == 0) {
-        sprintf(logMessage, "<-- Sending %s message to : %s", protocol, buffer);
+        sprintf(logMessage, "<-- Sending %s message: %s", protocol, buffer);
 
         printf("%s", logMessage);
 
@@ -307,7 +309,7 @@ int main(int argc, char *argv[]) {
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
 
-    sprintf(logMessage, "AS server started at %s\nCurrently listening in port %s for UDP and TCP connections.\n", hostname, portAS);
+    sprintf(logMessage, "AS server started at %s\nCurrently listening in port %s for UDP and TCP connections.\n\n", hostname, portAS);
 
     printf("%s%s", verboseMode == 1 ? "Verbose mode On!\n" : "Verbose mode Off!\n", logMessage);
 
@@ -436,7 +438,6 @@ int main(int argc, char *argv[]) {
                 sscanf(buffer, "%s %s %s %s %s", op, user, pass, pdIP, pdPort);
 
                 verboseLogger(verboseMode, buffer, "I", "Y", "UDP");
-                structChecker(verboseMode, arr_user);
 
                 // processa a mensagem e aplica as regras do protocolo UDP
 
@@ -594,7 +595,6 @@ int main(int argc, char *argv[]) {
                         n = read_buf(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
 
                         verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
-                        structChecker(verboseMode, arr_user);
 
                         sscanf(tcp_buffer, "%s %s %s %s %s", op, user, arg1, arg2, arg3);
 
@@ -625,6 +625,8 @@ int main(int argc, char *argv[]) {
 
                         } else if (strcmp(op, "REQ") == 0) {
                             struct user_st st_u;
+                            strcpy(st_u.uid, "");
+
                             for (int i = 0; i <= numUsers; i++) {
                                 if (strcmp(arr_user[i].uid, user) == 0) {
                                     st_u = arr_user[i];
@@ -656,7 +658,6 @@ int main(int argc, char *argv[]) {
                                 errcode = getaddrinfo(st_u.pdIp, st_u.pdPort, &hints, &res);
 
                                 verboseLogger(verboseMode, udp_msg, "O", "Y", "UDP");
-                                structChecker(verboseMode, arr_user);
 
                                 n = sendto(fd, udp_msg, strlen(udp_msg), 0, res->ai_addr, res->ai_addrlen);
 
@@ -707,6 +708,7 @@ int main(int argc, char *argv[]) {
                         } else if (strcmp(op, "AUT") == 0) {
                             struct request_st st_r;
                             char tidString[500];
+                            sprintf(tidString, "%d", 0);
 
                             // Verifica se o utilizador que pretende fazer a autorizacao existe
                             for (int i = 0; i <= numUsers; i++) {
@@ -722,15 +724,21 @@ int main(int argc, char *argv[]) {
                                     break;
                                 }
                             }
-                            char vc[5]= st_r.VC);
+                            char vc[5];
+                            strcpy(vc, st_r.VC);
                             // Verifica se o codigo de validacao esta correto
                             // e se nao foi utilizado previamente
 
                             if (strcmp(vc, arg2) == 0 && st_r.vcUsed == 0) {
                                 strcpy(tidString, st_r.TID);
                                 st_r.vcUsed = 1;
-                            } else {
-                                sprintf(tidString, "%d", 0);
+
+                                for (int i = 0; i <= st_u.numreq; i++) {
+                                    if (strcmp(st_u.arr_req[i].RID, arg1) == 0) {
+                                        st_u.arr_req[i] = st_r;
+                                        break;
+                                    }
+                                }
                             }
                             // Envia o resultado da validacao do VC
                             // 0 em caso de VC invalido
@@ -747,7 +755,7 @@ int main(int argc, char *argv[]) {
 
                         if (n == -1) {
                             // Em caso de erro processa o SIGPIPE
-                            processSIGPIPE(tcp_accept_fd, fd_id);
+                            processSIGPIPE(tcp_accept_fd, fd_id, verboseMode);
                         } else {
                             verboseLogger(verboseMode, tcp_msg, "O", "Y", "TCP");
                             structChecker(verboseMode, arr_user);

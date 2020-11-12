@@ -149,8 +149,11 @@ int main(int argc, char *argv[]) {
 
     setTimeoutUDP(fd, TIMEOUT_DEFAULT);
 
+    printf("PD waiting for user register!\n");
+
     while (1) {
         // setting the
+
         FD_ZERO(&rfds);
         FD_SET(0, &rfds);
         FD_SET(fd, &rfds);
@@ -256,8 +259,14 @@ int main(int argc, char *argv[]) {
                         strcat(msg, " ");
                         strcat(msg, "OK");
                         strcat(msg, "\n");
-                        sprintf(msgOutput, "Operation: %s %s VC code: %s \n", fileOp, fileName onTimeCode);
+
+                        if (fileOp[0] == 'L' || fileOp[0] == 'X')
+                            sprintf(msgOutput, "Operation: %s VC code: %s \n", fileOp, onTimeCode);
+                        else
+                            sprintf(msgOutput, "Operation: %s %s VC code: %s \n", fileOp, fileName, onTimeCode);
+
                         write(1, msgOutput, strlen(msgOutput));
+
                     } else {
                         strcat(msg, "RVC ");
                         strcat(msg, user);
