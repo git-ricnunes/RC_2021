@@ -8,6 +8,6 @@
 #include <errno.h>
 
 void send_file(int fd, FILE * fp, int fsize, char * buffer, int buffer_size);
-void recv_file(int fd, char * Fname, int fsize, char * buffer, int buffer_size);
+void recv_file(int fd, FILE * fp, int fsize, char * buffer, int buffer_size);
 
 #endif
