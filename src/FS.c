@@ -193,26 +193,18 @@ void upload_file(int fd, char* buf, char* file_path, int bufstart, int bufsize, 
     }
 }
 
-void RetrieveFile(char *filename, int fd){
-	char msg[100] = "";
-	char file_size[F_SIZE];
+int RetrieveFile(char *filename, int fd){
+	char msg[10] = "";
 	int n_sent;
-	int filesize = checkSizeFile(filename);
-	FILE *fp;
-	sprintf(file_size, "%d", filesize);
 	strcpy(msg, "RRT OK ");
-    strcat(msg, file_size);
-    strcat(msg, " ");
-	fp = fopen(filename, "r");
-	fseek(fp, 0, SEEK_SET);
 	n_sent = write_buf_SIGPIPE(fd, msg);
-	memset(msg, 0, sizeof(msg));
-	send_file(fd, fp, filesize, msg, sizeof(msg));
-	fclose(fp);
+	if (n_sent == -1)
+		return n_sent;
+	send_file(fd, filename, SP_CHECK);
 }
 
 // Directory Listing function
-void ListDir(char *dirname, int fd) {
+int ListDir(char *dirname, int fd) {
 	char msg[100] = "";
     DIR *d;
     struct dirent *dir;
@@ -220,6 +212,7 @@ void ListDir(char *dirname, int fd) {
 	char file_size[F_SIZE];
 	char temp[50];
 	int nfiles, filesize;
+	int n_sent;
 	strcpy(msg, "RLS ");
     nfiles = Number_of_files(dirname);
     sprintf(n_files, "%d", nfiles);
@@ -241,7 +234,9 @@ void ListDir(char *dirname, int fd) {
             	sprintf(file_size, "%d", filesize);
             	strcat(msg, file_size);
             	strcat(msg, "\n");
-            	write_buf_SIGPIPE(fd, msg);
+            	n_sent = write_buf_SIGPIPE(fd, msg);
+            	if (n_sent == -1)
+					return n_sent;
             	memset(msg, 0, sizeof(msg));
             	strcpy(temp, dirname);
             }    
@@ -255,7 +250,7 @@ void ListDir(char *dirname, int fd) {
         exit(1);
     }
     closedir(d);
-    return;
+    return 0;
 }
 
 int read_buffer(int fd, char* buf, int bufsize) {
@@ -316,7 +311,7 @@ int main(int argc, char *argv[]) {
     if (!check)
         printf("Directory Users created\n");
     else if (errno == EEXIST) {
-        printf("Unable to create directory Users - Already exists\n");
+        printf("Unable to create directory Users - Already exists and problably has old files\n");
     } else {
         printf("Unable to create directory\n");
         exit(1);
@@ -470,7 +465,11 @@ int main(int argc, char *argv[]) {
                         ERR = AS_ERR;
                     else if ((strcmp(op, "L") == 0) && (num_tokens == 4)) {
                         //Listar todos os ficheiros que o respetivo utilizador deu upload anteriormente
-                        ListDir(DIR_PATH, TCP_FDS[user_atual].fd_tcp);
+                       n = ListDir(DIR_PATH, TCP_FDS[user_atual].fd_tcp);
+                       if (n == -1) {
+                       			//Conexao ja estava terminada
+                       			printf("User connection closed(sigpipe).\n");
+                   		}
                     }
                     else if ((strcmp(op, "R") == 0) && (num_tokens == 5)) {
                         if (!strcmp(FileName, TCP_FDS[user_atual].filename))
@@ -479,7 +478,11 @@ int main(int argc, char *argv[]) {
                         else {
                         	strcat(DIR_PATH, "/");
                         	strcat(DIR_PATH, FileName);
-                        	RetrieveFile(DIR_PATH, TCP_FDS[user_atual].fd_tcp);
+                        	n = RetrieveFile(DIR_PATH, TCP_FDS[user_atual].fd_tcp);
+                        	if (n == -1) {
+                       			//Conexao ja estava terminada
+                       			printf("User connection closed(sigpipe).\n");
+                   			}
                         }
                     }
                     else if ((strcmp(op, "U") == 0) && (num_tokens == 5)) {
