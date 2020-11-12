@@ -53,6 +53,8 @@ struct sockaddr_in addr_udp;
 char buffer[BUFFER_SIZE], tcp_buffer[BUFFER_SIZE];
 struct sigaction act;
 struct timeval tv;
+char ipUser[30];
+int portUser;
 
 int pos_atual = 0;
 //Estrutura para guardar os dados dos utilizadores que fazem requests
@@ -74,6 +76,14 @@ int getFD_TCP(char UID[], char TID[]) {
     }
 }
 
+
+void foo(int fd){
+	struct sockaddr_in addr;
+	socklen_t addr_size = sizeof(struct sockaddr_in);
+    int res = getpeername(fd, (struct sockaddr *)&addr, &addr_size);
+    strcpy(ipUser, inet_ntoa(addr.sin_addr));
+    portUser = ntohs(addr.sin_port);
+}
 void setFD_TCP(char UID[], char TID[], char OP[], char Reply[], char FileName[], int fd) {
     strcpy(TCP_FDS[pos_atual].uid, UID);
     strcpy(TCP_FDS[pos_atual].tid, TID);
@@ -444,6 +454,10 @@ int main(int argc, char *argv[]) {
                         num_tokens++;
                         token = strtok(NULL, " ");
                     }
+                    if (verbose_mode){
+                    	printf("IP: %s Port: %s\nMessage received from AS:\n%s", ipAS, portAS, buffer);
+                    }
+
                     user_atual = getFD_TCP(UID, TID);
 
                     strcat(DIR_PATH, TCP_FDS[user_atual].uid);
@@ -601,8 +615,11 @@ int main(int argc, char *argv[]) {
                 // recebe mensagem de user
                 else {
                     memset(reply_msg, 0, sizeof(reply_msg));
-                    //nao esta corrento while( numero maximo de caract ver discord)
                     n = read_buffer(i, tcp_buffer, sizeof(tcp_buffer));
+                    foo(i);
+                    if (verbose_mode){
+                    	printf("IP: %s Port: %d\nMessage received from User:\n%s", ipUser, portUser, buffer);
+                    }
                     sscanf(tcp_buffer, "%s %s %s %s %s", op, UID, TID, FileName, FileSize);
                     //Mensagem possivel para o AS - pode nao chegar a ser mandada se houver algum problema com o pedido
                     strcat(msg, "VLD ");
