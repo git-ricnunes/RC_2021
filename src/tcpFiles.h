@@ -7,7 +7,12 @@
 #include <unistd.h>
 #include <errno.h>
 
-void send_file(int fd, FILE * fp, int fsize, char * buffer, int buffer_size);
+#define SP_CHECK 1
+#define DATA_SIZE 1024
+
+char data[DATA_SIZE];
+
+void send_file(int fd, char *fname, int sp);
 void recv_file(int fd, FILE * fp, int fsize, char * buffer, int buffer_size);
 
 #endif
