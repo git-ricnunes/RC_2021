@@ -1,4 +1,5 @@
 #include "msg.h"
+#include "tcpFiles.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,10 +25,12 @@
 #define FBUFFER_SIZE 1024
 #define MAX_TOKENS 4
 #define CODE_SIZE 4
-#define UID_SIZE 64
-#define PASS_SIZE 64
+#define UID_SIZE 6
+#define PASS_SIZE 9
 #define RID_SIZE 5
 #define TID_SIZE 5
+#define FNAME_SIZE 25
+#define RRT_SIZE 18
 #define STATUS_SIZE 6
 #define LOGGED_IN 1
 #define LOGGED_OUT 0
@@ -100,6 +103,7 @@ int main(int argc, char *argv[]){
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
 
+	FILE *fp;
 	char buffer[BUFFER_SIZE];
 	char fbuffer[FBUFFER_SIZE];
 	char msg[BUFFER_SIZE];
@@ -108,6 +112,10 @@ int main(int argc, char *argv[]){
 	char pass[PASS_SIZE] = "";
 	char rid[RID_SIZE] = "";
 	char tid[TID_SIZE] = "0";
+	char fname[FNAME_SIZE] = "";
+	int fsize;
+	char data[FBUFFER_SIZE];
+	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
 
@@ -122,7 +130,7 @@ int main(int argc, char *argv[]){
 		char * token_list[MAX_TOKENS];
 
 		char * token = strtok(buffer, " \n");
-		while (token != NULL){
+		while (token != NULL && num_tokens < MAX_TOKENS){
 			token_list[num_tokens++] = token;
 			token = strtok(NULL, " \n");
 		}
@@ -160,17 +168,45 @@ int main(int argc, char *argv[]){
 		}
 		else if ((!strcmp(token_list[0], "retrieve") || !strcmp(token_list[0], "r")) && num_tokens == 2){ /* RTV UID TID Fname */
 			sprintf(code, "RTV");
-			sprintf(msg, "%s %s %s %s\n", code, uid, tid, token_list[1]); /* inc: char Fname */
+			strcpy(fname, token_list[1]);
+			sprintf(msg, "%s %s %s %s\n", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "upload") || !strcmp(token_list[0], "u")) && num_tokens == 2){ /* UPL UID TID Fname Fsize data */
 			sprintf(code, "UPL");
-			/* inc */
+			if (strlen(token_list[1]) >= FNAME_SIZE){
+				fprintf(stderr, "ERR\n");
+				exit(1);
+			}
+			strcpy(fname, token_list[1]);
+			fp = fopen(fname, "r");
+			if (!fp){
+				fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
+				fprintf(stderr, "Error code: %d\n", errno);
+				exit(1);
+			}
+			if (fseek(fp, 0L, 2) == -1){
+				fprintf(stderr, "Error: failed to position file ""%s"" indicator\n", fname);
+				fprintf(stderr, "Error code: %d\n", errno);
+				exit(1);
+			}
+			fsize = ftell(fp);
+			if (fsize == -1){
+				fprintf(stderr, "Error: failed to read file ""%s"" size\n", fname);
+				fprintf(stderr, "Error code: %d\n", errno);
+				exit(1);
+			}
+			else if (fsize >= 1000000000){
+				fprintf(stderr, "Error: file ""%s"" size too big\n", fname);
+				exit(1);
+			}
+			sprintf(msg, "%s %s %s %s %d ", code, uid, tid, fname, fsize);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "delete") || !strcmp(token_list[0], "d")) && num_tokens == 2){ /* DEL UID TID Fname */
 			sprintf(code, "DEL");
-			sprintf(msg, "%s %s %s %s\n", code, uid, tid, token_list[1]); /* inc: char Fname */
+			strcpy(fname, token_list[1]);
+			sprintf(msg, "%s %s %s %s\n", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "remove") || !strcmp(token_list[0], "x")) && num_tokens == 1){ /* REM UID TID */
@@ -194,16 +230,22 @@ int main(int argc, char *argv[]){
 		
 			n = read_buf(fdAS, buffer, sizeof(buffer));
 
+			sscanf(buffer, "%s %s", rcode, status);
+
+			if (!strcmp(code, "LOG") && !strcmp(rcode, "RLO")){
+				if (!strcmp(status, "OK"))
+					session = LOGGED_IN;
+			}
+			else if (!strcmp(code, "AUT") && !strcmp(rcode, "RAU")){
+				if (strcmp(status, "0"))
+					strcpy(tid, status);
+			}
+			else if (strcmp(code, "REQ") || strcmp(rcode, "RRQ")){
+				fprintf(stderr, "ERR\n");
+				exit(1);
+			}
+
 			write(1, "echo: ", 6); write(1, buffer, n);
-
-			sscanf(buffer, "%s %s", code, status);
-
-			if (!strcmp(code, "RLO") && !strcmp(status, "OK")){
-				session = LOGGED_IN;
-			}
-			else if (!strcmp(code, "RAU") && strcmp(status, "0")){
-				strcpy(tid, status);
-			}
 		}
 		else if (fd == FS_FD_SET){
 
@@ -235,17 +277,62 @@ int main(int argc, char *argv[]){
 			printf("Connected to File Server ""%s"" in port %s\n", ipFS, portFS);
 
 			write_buf(fdFS, msg);
-		
-			//
+			if (!strcmp(code, "UPL")){
+				send_file(fdFS, fp, fsize, data, FBUFFER_SIZE);
+				fclose(fp);
+			}
+
+			if (!strcmp(code, "LST")){
+				//rlst stdout
+			}
+			else if (!strcmp(code, "RTV")){
+				n = read_buf_LIMIT(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE);
+				sscanf(fbuffer, "%s %s %d %s", rcode, status, &fsize, data);
+				if (strcmp(rcode, "RRT") || n < (CODE_SIZE + 4)){
+					fprintf(stderr, "ERR\n");
+					exit(1);
+				}
+				else{
+					if (n == (CODE_SIZE + 4)){
+						if (!strcmp(status, "EOF") || !strcmp(status, "NOK") || !strcmp(status, "INV") || !strcmp(status, "ERR")){
+							write(1, "echo: ", 6); write(1, fbuffer, n);
+						}
+						else{
+							fprintf(stderr, "ERR\n");
+							exit(1);
+						}
+					}
+					else if (!strcmp(status, "OK")){
+						write(1, "echo: RRT OK\n", 13);
+						printf("Retrieving ""%s""...\n", fname); //clean up later
+						fp = fopen(fname, "a");
+						if (!fp){
+							fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
+							fprintf(stderr, "Error code: %d\n", errno);
+							exit(1);
+						}
+						recv_file(fdFS, fp, fsize, data, FBUFFER_SIZE);
+						fclose(fp);
+						printf("Done!\n");
+					}
+				}
+			}
+			else{
+				write(1, "echo: ", 6); write(1, fbuffer, n); //check if rcode/status are valid
+				//read_buf rupl, rdel, rrem + stdout
+			}
 
 			freeaddrinfo(resFS);
 			close(fdFS);
 		}
 
 		memset(buffer, 0, BUFFER_SIZE);
-		memset(fbuffer, 0, FBUFFER_SIZE);
 		memset(msg, 0, BUFFER_SIZE);
 		memset(code, 0, CODE_SIZE);
+		memset(fname, 0, FNAME_SIZE);
+		memset(fbuffer, 0, FBUFFER_SIZE);
+		memset(rcode, 0, CODE_SIZE);
+		memset(status, 0, STATUS_SIZE);
 	}
 
 	return 0;
