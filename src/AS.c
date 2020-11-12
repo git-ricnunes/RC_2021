@@ -60,7 +60,18 @@ struct user_st {
 };
 
 /**
- * Comment Template
+ * Funcao checkFileOp
+ *  Descricao: 
+ *      Funcao auxiliar para validação dos argumentos nas mensagens REQ.
+ *      Verifica a consistencia entre tipo de operação e a existencia de argumento opcional
+ * 
+ *  Argumentos : 
+ *      opOut -> tipo de operacao recebida nas mensagem
+ *      argument -> argumento opcional recebino nas mensagens
+ * 
+ *  Retorno : 
+ *      valor inteiro que representa verdadeiro(1) ou falso (0)
+ * 
  **/
 
 int checkFileOp(char *opOut, char *argument) {
@@ -83,7 +94,17 @@ int checkFileOp(char *opOut, char *argument) {
 }
 
 /**
- * Comment Template
+ * Funcao checkOpWithFile
+ *  Descricao: 
+ *      Funcao auxiliar para validação dos argumentos nas mensagens REQ.
+ *      Verifica a se a operacao enviada por argumneto necessita do argumento opcional
+ * 
+ *  Argumentos : 
+ *      opOut -> tipo de operacao recebida na mensagem
+ * 
+ * Retorno : 
+ *      valor inteiro que representa verdadeiro(1) ou falso (0)
+ * 
  **/
 
 int checkOpWithFile(char opOut) {
@@ -100,13 +121,21 @@ int checkOpWithFile(char opOut) {
 }
 
 /**
- * Comment Template
+ * Funcao structChecker
+ *  Descricao: 
+ *      Funcao util na monitorizacao do estado do servidor AS.
+ *      Imprime o estado "base de dados" de utilizadores e dos respectivos 
+ *      pedidos efetuados pelos mesmos
+ * 
+ *  Argumentos : 
+ *      verboseMode -> variavel recebedia no inicio do programa que indica
+ *                     se 
  **/
 
 void structChecker(int verboseMode, struct user_st *arr_user) {
     if (!flagVerboseMode)
         return;
-    printf("\n--------------------------- Authentication Database:  ----------------------------------------\n");
+    printf("\n--------------------------- User DB: ---------------------------\n");
     printf(" Number of users: %d\n", numUsers);
     for (int j = 0; j < numUsers; j++) {
         printf(" User:%s pass:%s PD_ip:%s PD_port:%s isLogged?:%d numRequests:%d\n",
@@ -128,7 +157,7 @@ void structChecker(int verboseMode, struct user_st *arr_user) {
             printf("\n");
         }
     }
-    printf("----------------------------------------------------------------------------------------------\n\n");
+    printf("--------------------------- End User DB: ------------------------\n\n");
 }
 
 /**
@@ -154,13 +183,6 @@ int checkReqErr(char *tcp_buffer) {
 
     return result;
 }
-
-/**
- * UDP Protocol function 
- * argumentos
- * TODO
- * 
- **/
 
 /**
  * Comment Template
@@ -517,8 +539,10 @@ int main(int argc, char *argv[]) {
                         int uindex = 0;
 
                         n = read_buf(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
+
                         verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
                         structChecker(verboseMode, arr_user);
+
                         sscanf(tcp_buffer, "%s %s %s %s %s", op, user, arg1, arg2, arg3);
 
                         struct user_st st_u;

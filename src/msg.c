@@ -74,8 +74,6 @@ int read_buf(int fd, char* buf, int bufsize) {
         n_sum += n_rec;
         if (buf[n_sum - 1] == '\n') /* All bytes read */
             return n_sum;
-        else if (buf[n_sum - 1] == '\0') /* All bytes read */
-            return n_sum;
         else /* Still bytes left to read */
             continue;
     }
