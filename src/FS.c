@@ -382,7 +382,7 @@ int main(int argc, char *argv[]) {
                         maxfd = newfd_tcp;
                     retval--;
                 } else if (i == udp_fd) {
-                	printf("MENSAGEM RECEBIDA AS\n");
+                	printf("MENSAGEM RECEBIDA AS %d\n", i);
                     addrlen_udp = sizeof(addr_udp);
                     //recebe mensagem do AS
                     n_udp = recvfrom(udp_fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr_udp, &addrlen_udp);
@@ -392,12 +392,11 @@ int main(int argc, char *argv[]) {
                     	printf("IP: %s Port: %s\nMessage received from AS:\n%s", ipAS, portAS, buffer);
                     }
                     sscanf(buffer, "%s %s %s %s %s", CNF, UID, TID, op, FileName);
-                    strtok(buffer, " ");
+                    token = strtok(buffer, " ");
                     while (token != NULL) {
                         num_tokens++;
                         token = strtok(NULL, " ");
                     }
-
                     user_atual = getFD_TCP(UID, TID);
 
                     strcat(DIR_PATH, TCP_FDS[user_atual].uid);
@@ -547,7 +546,6 @@ int main(int argc, char *argv[]) {
                         }
                     }
                     if ((ERR > 0) || ((strcmp(op, "L") != 0) && (strcmp(op, "R") != 0))){
-                    	printf("%s\n", msg);
                     	n = write_buf_SIGPIPE(TCP_FDS[user_atual].fd_tcp, msg);
                    		if (n == -1) {
                        		//Conexao ja estava terminada
@@ -577,7 +575,7 @@ int main(int argc, char *argv[]) {
                     strcat(msg, TID);
                     strcat(msg, "\n");
                     if (strcmp(op, "UPL") != 0){
-                    	strtok(tcp_buffer, " ");
+                    	token = strtok(tcp_buffer, " ");
                     	while (token != NULL) {
                         	num_tokens++;
                         	token = strtok(NULL, " ");
@@ -628,8 +626,9 @@ int main(int argc, char *argv[]) {
                                 setFD_TCP(UID, TID, "D", reply_msg, FileName, i);
                             }
                             closedir(d);
-                        } else
+                        } else{
                             ERR = REQ_ERR;
+                        }
                     }
 
                     else if ((strcmp(op, "REM") == 0)) {
@@ -754,7 +753,6 @@ int main(int argc, char *argv[]) {
                    	 	// Se nao houve erro, manda mensagem ao AS para validar a transacao
                     	n_udp = sendto(udp_fd, msg, strlen(msg), 0, res_udp->ai_addr, res_udp->ai_addrlen);
                     	FD_SET(udp_fd, &active_fd_set);
-                    	close(i);
                     	FD_CLR(i, &active_fd_set);
                     	AS_waiting_answer++;
                     	if (udp_fd > maxfd)
