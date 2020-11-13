@@ -33,6 +33,7 @@
 #define FSIZE_SIZE 11
 #define RRT_SIZE 18
 #define STATUS_SIZE 6
+#define MAX_FILES 15
 #define LOGGED_IN 1
 #define LOGGED_OUT 0
 #define AS_FD_SET 1
@@ -55,6 +56,30 @@ void unexpected_protocol_FS(){
 	freeaddrinfo(resFS);
 	close(fdFS);
 	unexpected_protocol();
+}
+
+void list_files(char * fbuf, int n){
+
+	char lbuf[n+1];
+	strncpy(lbuf, fbuf, n);
+
+	int num_files = 0;
+	char * file_list[MAX_FILES+1];
+
+	char * ftoken = strtok(lbuf, " \n");
+	while (ftoken != NULL && num_files <= MAX_FILES){
+		file_list[num_files++] = ftoken;
+		ftoken = strtok(NULL, " \n");
+	}
+	if (num_files%2 != 0)
+		unexpected_protocol_FS();
+
+	for (int i = 0; i < num_files; i+=2){
+		if (strlen(file_list[i]) >= FNAME_SIZE || strlen(file_list[i+1]) >= FSIZE_SIZE)
+			unexpected_protocol_FS();
+		else
+			printf("%s %s\n", file_list[i], file_list[i+1]);
+	}
 }
 
 int main(int argc, char *argv[]){
@@ -133,6 +158,7 @@ int main(int argc, char *argv[]){
 	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
+	int n_offset;
 
 	srand(time(NULL));
 
@@ -326,7 +352,7 @@ int main(int argc, char *argv[]){
 			else if (strcmp(code, "REQ") || strcmp(rcode, "RRQ"))
 				unexpected_protocol();
 
-			write(1, "echo: ", 6); write(1, buffer, n);
+			write(1, "AS: ", 4); write(1, buffer, n);
 		}
 		else if (fd == FS_FD_SET){
 
@@ -362,10 +388,24 @@ int main(int argc, char *argv[]){
 				send_file(fdFS, fname, SP_IGNORE);
 
 			if (!strcmp(code, "LST")){
-				n = read_buf(fdFS, fbuffer, FBUFFER_SIZE); //read_buf_LIMIT?
-				write(1, "echo: ", 6); write(1, fbuffer, n);
-				//strtok to show one file per line
-				//working but still needs to check for unexpected protocol messages
+				n = read_buf(fdFS, fbuffer, FBUFFER_SIZE);
+				sscanf(fbuffer, "%s %s", rcode, status);
+				if (strcmp(rcode, "RLS") || n < (CODE_SIZE + 4))
+					unexpected_protocol_FS();
+				else{
+					if (n == (CODE_SIZE + 4)){
+						if (!strcmp(status, "EOF") || !strcmp(status, "NOK") || !strcmp(status, "INV") || !strcmp(status, "ERR")){
+							write(1, "FS: ", 4); write(1, fbuffer, n);
+						}
+						else
+							unexpected_protocol_FS();
+					}
+					else{
+						n_offset = strlen(rcode) + 1 + strlen(status) + 1;
+						write(1, "FS: RLS ", 4); write(1, status, strlen(status)); write(1, "\n", 1);
+						list_files(fbuffer + n_offset, n - n_offset);
+					}
+				}
 			}
 			else if (!strcmp(code, "RTV")){
 				n = read_buf_LIMIT(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE);
@@ -375,7 +415,7 @@ int main(int argc, char *argv[]){
 				else{
 					if (n == (CODE_SIZE + 4)){
 						if (!strcmp(status, "EOF") || !strcmp(status, "NOK") || !strcmp(status, "INV") || !strcmp(status, "ERR")){
-							write(1, "echo: ", 6); write(1, fbuffer, n);
+							write(1, "FS: ", 4); write(1, fbuffer, n);
 						}
 						else
 							unexpected_protocol_FS();
@@ -383,9 +423,9 @@ int main(int argc, char *argv[]){
 					else if (!strcmp(status, "OK")){
 						if (strlen(sfsize) > 10)
 							unexpected_protocol_FS();
-						int n_offset = strlen(rcode) + 1 + strlen(status) + 1 + strlen(sfsize) + 1;
+						n_offset = strlen(rcode) + 1 + strlen(status) + 1 + strlen(sfsize) + 1;
 						fsize = atoi(sfsize);
-						write(1, "echo: RRT OK\n", 13);
+						write(1, "FS: RRT OK\n", 11);
 						printf("Retrieving ""%s""...\n", fname); //clean up later
 						recv_file(fdFS, fname, fsize, fbuffer + n_offset, n - n_offset);
 						printf("Done!\n");
@@ -395,7 +435,7 @@ int main(int argc, char *argv[]){
 			else{
 				n = read_buf(fdFS, buffer, sizeof(buffer));
 
-				write(1, "echo: ", 6); write(1, buffer, n); //check if rcode/status are valid
+				write(1, "FS: ", 4); write(1, buffer, n); //check if rcode/status are valid
 				//read_buf rupl, rdel, rrem + stdout
 			}
 
