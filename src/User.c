@@ -434,9 +434,17 @@ int main(int argc, char *argv[]){
 			}
 			else{
 				n = read_buf(fdFS, buffer, sizeof(buffer));
-
-				write(1, "FS: ", 4); write(1, buffer, n); //check if rcode/status are valid
-				//read_buf rupl, rdel, rrem + stdout
+				sscanf(buffer, "%s %s", rcode, status);
+				if ((strcmp(code, "UPL") || strcmp(rcode, "RUP") || n > (CODE_SIZE + 5)) && (strcmp(code, "DEL") || strcmp(rcode, "RDL") || n > (CODE_SIZE + 4)) && (strcmp(code, "REM") || strcmp(rcode, "RRM") || n > (CODE_SIZE + 4)))
+					unexpected_protocol_FS();
+				write(1, "FS: ", 4); write(1, buffer, n);
+				if (!strcmp(code, "REM")){
+					freeaddrinfo(resFS);
+					close(fdFS);
+					freeaddrinfo(resAS);
+					close(fdAS);
+					exit(0);
+				}
 			}
 
 			freeaddrinfo(resFS);
