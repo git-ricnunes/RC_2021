@@ -45,8 +45,16 @@ struct addrinfo hintsAS, *resAS, hintsFS, *resFS;
 struct sockaddr_in addrAS, addrFS;
 
 void unexpected_protocol(){
+	freeaddrinfo(resAS);
+	close(fdAS);
 	fprintf(stderr, "ERR\n");
 	exit(1);
+}
+
+void unexpected_protocol_FS(){
+	freeaddrinfo(resFS);
+	close(fdFS);
+	unexpected_protocol();
 }
 
 int main(int argc, char *argv[]){
@@ -109,6 +117,8 @@ int main(int argc, char *argv[]){
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
 
+	FILE * fp;
+
 	char buffer[BUFFER_SIZE];
 	char fbuffer[FBUFFER_SIZE];
 	char msg[BUFFER_SIZE];
@@ -119,6 +129,7 @@ int main(int argc, char *argv[]){
 	char tid[TID_SIZE] = "0";
 	char fname[FNAME_SIZE] = "";
 	char sfsize[FSIZE_SIZE] = "";
+	int fsize;
 	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
@@ -126,6 +137,14 @@ int main(int argc, char *argv[]){
 	srand(time(NULL));
 
 	while(1){
+
+		memset(buffer, 0, BUFFER_SIZE);
+		memset(msg, 0, BUFFER_SIZE);
+		memset(code, 0, CODE_SIZE);
+		memset(fname, 0, FNAME_SIZE);
+		memset(fbuffer, 0, FBUFFER_SIZE);
+		memset(rcode, 0, CODE_SIZE);
+		memset(status, 0, STATUS_SIZE);
 
 		printf("Enter a command: ");
 		fgets(buffer, BUFFER_SIZE, stdin);
@@ -141,14 +160,31 @@ int main(int argc, char *argv[]){
 
 		int fd = 0;
 
-		if (!strcmp(token_list[0], "login") && num_tokens == 3 && session == LOGGED_OUT){ /* LOG UID pass */
+		if (!strcmp(token_list[0], "login") && num_tokens == 3){ /* LOG UID pass */
+			if (session == LOGGED_IN){
+				printf("Already logged in as uid %s\n", uid);
+				continue;
+			}
 			sprintf(code, "LOG");
+			if (strlen(token_list[1]) >= UID_SIZE){
+				printf("Invalid UID %s: length must not exceed %d characters\n", token_list[1], UID_SIZE - 1);
+				continue;
+			}
 			strcpy(uid, token_list[1]);
+			if (strlen(token_list[2]) >= PASS_SIZE){
+				printf("Invalid password %s: length must not exceed %d characters\n", token_list[2], PASS_SIZE - 1);
+				continue;
+			}
 			strcpy(pass, token_list[2]);
 			sprintf(msg, "%s %s %s\n", code, uid, pass);
 			fd = AS_FD_SET;
 		}
 		else if (!strcmp(token_list[0], "req")){ /* REQ UID RID Fop [Fname] */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "REQ");
 			sprintf(rid, "%d%d%d%d", rand()%9, rand()%9, rand()%9, rand()%9);
 			if ((!strcmp(token_list[1], "L") || !strcmp(token_list[1], "X")) && num_tokens == 2){
@@ -156,41 +192,105 @@ int main(int argc, char *argv[]){
 				fd = AS_FD_SET;
 			}
 			else if ((!strcmp(token_list[1], "R") || !strcmp(token_list[1], "U") || !strcmp(token_list[1], "D")) && num_tokens == 3){
-				sprintf(msg, "%s %s %s %s %s\n", code, uid, rid, token_list[1], token_list[2]);
+				if (strlen(token_list[2]) >= FNAME_SIZE){
+					printf("Invalid file name %s: length must not exceed %d characters\n", token_list[2], FNAME_SIZE - 1);
+					continue;
+				}
+				strcpy(fname, token_list[2]);
+				sprintf(msg, "%s %s %s %s %s\n", code, uid, rid, token_list[1], fname);
 				fd = AS_FD_SET;
 			}
 		}
 		else if (!strcmp(token_list[0], "val") && num_tokens == 2){ /* AUT UID RID VC */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "AUT");
 			sprintf(msg, "%s %s %s %s\n", code, uid, rid, token_list[1]);
 			fd = AS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "list") || !strcmp(token_list[0], "l")) && num_tokens == 1){ /* LST UID TID */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "LST");
 			sprintf(msg, "%s %s %s\n", code, uid, tid);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "retrieve") || !strcmp(token_list[0], "r")) && num_tokens == 2){ /* RTV UID TID Fname */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "RTV");
+			if (strlen(token_list[1]) >= FNAME_SIZE){
+				printf("Invalid file name %s: length must not exceed %d characters\n", token_list[1], FNAME_SIZE - 1);
+				continue;
+			}
 			strcpy(fname, token_list[1]);
 			sprintf(msg, "%s %s %s %s\n", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "upload") || !strcmp(token_list[0], "u")) && num_tokens == 2){ /* UPL UID TID Fname Fsize data */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "UPL");
-			if (strlen(token_list[1]) >= FNAME_SIZE)
-				unexpected_protocol();
+			if (strlen(token_list[1]) >= FNAME_SIZE){
+				printf("Invalid file name %s: length must not exceed %d characters\n", token_list[1], FNAME_SIZE - 1);
+				continue;
+			}
 			strcpy(fname, token_list[1]);
+			fp = fopen(fname, "r");
+			if (!fp){
+				printf("File %s does not exist or cannot be accessed\n", fname);
+				continue;
+			}
+			if (fseek(fp, 0L, SEEK_END) == -1){
+				printf("Could not position file %s indicator to determine size\n", fname);
+				continue;
+			}
+			fsize = ftell(fp);
+			if (fsize == -1){
+				printf("Could not read file %s size\n", fname);
+				continue;
+			}
+			if (fsize >= 10000000000){
+				printf("File %s too large (%d GB), should be lower than 10 GB\n", fname, fsize/1000000000);
+				continue;
+			}
+			fclose(fp);
 			sprintf(msg, "%s %s %s %s ", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "delete") || !strcmp(token_list[0], "d")) && num_tokens == 2){ /* DEL UID TID Fname */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "DEL");
+			if (strlen(token_list[1]) >= FNAME_SIZE){
+				printf("Invalid file name %s: length must not exceed %d characters\n", token_list[1], FNAME_SIZE - 1);
+				continue;
+			}
 			strcpy(fname, token_list[1]);
 			sprintf(msg, "%s %s %s %s\n", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
 		else if ((!strcmp(token_list[0], "remove") || !strcmp(token_list[0], "x")) && num_tokens == 1){ /* REM UID TID */
+			if (session == LOGGED_OUT){
+				printf("Invalid command: please log in before attempting another command\n");
+				printf("Login command: login UID pass\n");
+				continue;
+			}
 			sprintf(code, "REM");
 			sprintf(msg, "%s %s %s\n", code, uid, tid);
 			fd = FS_FD_SET;
@@ -201,8 +301,8 @@ int main(int argc, char *argv[]){
 			exit(0);
 		}
 		else{
-			fprintf(stderr, "Invalid command\n");
-			exit(1);
+			printf("Invalid command\n");
+			continue;
 		}
 
 		memset(buffer, 0, BUFFER_SIZE);
@@ -271,20 +371,20 @@ int main(int argc, char *argv[]){
 				n = read_buf_LIMIT(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE);
 				sscanf(fbuffer, "%s %s %s", rcode, status, sfsize);
 				if (strcmp(rcode, "RRT") || n < (CODE_SIZE + 4))
-					unexpected_protocol();
+					unexpected_protocol_FS();
 				else{
 					if (n == (CODE_SIZE + 4)){
 						if (!strcmp(status, "EOF") || !strcmp(status, "NOK") || !strcmp(status, "INV") || !strcmp(status, "ERR")){
 							write(1, "echo: ", 6); write(1, fbuffer, n);
 						}
 						else
-							unexpected_protocol();
+							unexpected_protocol_FS();
 					}
 					else if (!strcmp(status, "OK")){
 						if (strlen(sfsize) > 10)
-							unexpected_protocol();
+							unexpected_protocol_FS();
 						int n_offset = strlen(rcode) + 1 + strlen(status) + 1 + strlen(sfsize) + 1;
-						int fsize = atoi(sfsize);
+						fsize = atoi(sfsize);
 						write(1, "echo: RRT OK\n", 13);
 						printf("Retrieving ""%s""...\n", fname); //clean up later
 						recv_file(fdFS, fname, fsize, fbuffer + n_offset, n - n_offset);
@@ -302,14 +402,6 @@ int main(int argc, char *argv[]){
 			freeaddrinfo(resFS);
 			close(fdFS);
 		}
-
-		memset(buffer, 0, BUFFER_SIZE);
-		memset(msg, 0, BUFFER_SIZE);
-		memset(code, 0, CODE_SIZE);
-		memset(fname, 0, FNAME_SIZE);
-		memset(fbuffer, 0, FBUFFER_SIZE);
-		memset(rcode, 0, CODE_SIZE);
-		memset(status, 0, STATUS_SIZE);
 	}
 
 	return 0;
