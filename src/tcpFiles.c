@@ -36,7 +36,7 @@ void send_file(int fd, char *fname, int sp){
 	}
 	else
 		write_buf(fd, data);
-	fseek(fp, 0L, SEEK_SET);
+	fseek(fp, 0L, SEEK_SET); //err?
 	while(1){
 		memset(data, 0, DATA_SIZE);
 		n_read = fread(data, 1, DATA_SIZE, fp);
@@ -57,7 +57,7 @@ void send_file(int fd, char *fname, int sp){
 				write_buf(fd, data);
 			n_sum += n_read;
 		}
-		if (n_sum == fsize){
+		if (n_sum >= fsize){
 			memset(data, 0, DATA_SIZE);
 			sprintf(data, "\n");
 			if (sp == SP_CHECK)
@@ -102,6 +102,8 @@ void recv_file(int fd, char *fname, int fsize, char *initial_data, int initial_d
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }
+        if (n_sum + n_read > fsize)
+        	n_read = fsize - n_sum; //ignorar \n
         n_wrtn = fwrite(data, 1, n_read, fp); //fwrite = write? (write all characters read)
 	}
 }
