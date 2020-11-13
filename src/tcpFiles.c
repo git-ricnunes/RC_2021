@@ -102,8 +102,12 @@ void recv_file(int fd, char *fname, int fsize, char *initial_data, int initial_d
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }
-        if (n_sum + n_read > fsize)
+        if (n_sum + n_read >= fsize)
         	n_read = fsize - n_sum; //ignorar \n
+        if (n_read == 0){
+        	fclose(fp);
+        	return;
+        }
         n_wrtn = fwrite(data, 1, n_read, fp); //fwrite = write? (write all characters read)
 	}
 }
