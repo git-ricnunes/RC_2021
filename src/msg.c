@@ -33,7 +33,7 @@ int write_buf_SIGPIPE(int fd, char* buf) {
 
     while (1) {
         n_sent = write(fd, buf, (n_msg - n_sum));
-
+        printf("%s\n", buf);
         if (n_sent == -1) { /* Err */
             if (errno != EPIPE) {
                 fprintf(stderr, "Error: failed to send ""%s""\n", buf);
@@ -59,7 +59,7 @@ int read_buf(int fd, char* buf, int bufsize) {
     int n_sum = 0;
     int n_buf = bufsize;
     int n_rec;
-
+    memset(buf, 0, bufsize);
     while (1) {
         n_rec = read(fd, buf, (bufsize - n_sum));
 
@@ -68,7 +68,6 @@ int read_buf(int fd, char* buf, int bufsize) {
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }
-
         n_sum += n_rec;
         if (buf[n_sum - 1] == '\n') /* All bytes read */
             return n_sum;

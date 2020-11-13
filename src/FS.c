@@ -156,42 +156,6 @@ int checkSizeFile(char *filename){
     return res;
 
 }
-// PARA COMANDO UPLOAD
-void upload_file(int fd, char* buf, char* file_path, int bufstart, int bufsize, int filesize){
-    int n_sum = 0;
-    int n_rec;
-    int n;
-    FILE *fp;
-    fp = fopen(file_path, "a");
-    while (1) {
-    	//significa que ja ha conteudo do ficheiro para ser escrito
-    	if (bufstart < MAX_BYTES){
-    		n = fwrite(buf + bufstart, 1, strlen(buf) - bufstart, fp);
-    		if (n == -1) { /* Err */
-            	fprintf(stderr, "Error: failed to write message for file\n");
-            	fprintf(stderr, "Error code: %d\n", errno);
-            	exit(1);
-        	}
-        	n_sum += n;
-        }
-        //ficheiro ja foi todo lido
-        printf("%d %d\n",n_sum, filesize);
-        if (n_sum >= filesize){
-        	fclose(fp);
-        	return;
-        }
-
-        memset(buf, 0, bufsize);
-        bufstart = 0;
-        n_rec = read_buf(fd, buf, bufsize);
-
-        if (n_rec == -1) { /* Err */
-            fprintf(stderr, "Error: failed to read message from authentication server\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
-        }
-    }
-}
 
 int RetrieveFile(char *filename, int fd){
 	char msg[10] = "";
@@ -379,6 +343,7 @@ int main(int argc, char *argv[]) {
         retval = select(maxfd + 1, &temp_fd_set, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)NULL);
         if (retval == -1) {
             printf("Error: Select: %d\n", errno);
+            perror(" ERROR");
             exit(1);
         }
         printf("%d\n", retval);
@@ -521,7 +486,7 @@ int main(int argc, char *argv[]) {
                                 exit(1);
                             }
                             strcpy(msg, TCP_FDS[user_atual].reply);
-                            strcat(msg, " OK");
+                            strcat(msg, " OK\n");
                             closedir(d);
                         }
                     }
@@ -540,18 +505,18 @@ int main(int argc, char *argv[]) {
                                 exit(1);
                             }
                             strcpy(msg, TCP_FDS[user_atual].reply);
-                            strcat(msg, " OK");
+                            strcat(msg, " OK\n");
                         }
                     } else if ((strcmp(op, "X") == 0) && (num_tokens == 4)) {
                         //Apaga a informacao do utilizador no AS e depois remove todos os ficheiros e pastas do utilizador no FS
                         DeleteDirectory(DIR_PATH);
                         strcpy(msg, TCP_FDS[user_atual].reply);
-                        strcat(msg, " OK");
+                        strcat(msg, " OK\n");
                     }
                     //UNEXPECTED ERROR
                     else
                         ERR = UNX_ERR;
-                    if (ERR) {
+                    if (ERR > 0) {
                         //APAGA O FICHEIRO TEMPORARIO CRIADO NO FS E A DIRECTORIA DO UID SE FOI O PRIMEIRO FICHEIRO
                         if (strcmp(TCP_FDS[user_atual].op, "U") == 0) {
                             strcat(DIR_PATH, "/");
@@ -575,13 +540,13 @@ int main(int argc, char *argv[]) {
                             closedir(d);
                         }
                         if (ERR == UNX_ERR)
-                            strcpy(msg, "ERR");
+                            strcpy(msg, "ERR\n");
                         else if (ERR == AS_ERR) {
                             strcpy(msg, TCP_FDS[user_atual].reply);
-                            strcat(msg, " INV");
+                            strcat(msg, " INV\n");
                         }
                     }
-                    if ((ERR) || ((strcmp(op, "L") != 0) && (strcmp(op, "R") != 0))){
+                    if ((ERR > 0) || ((strcmp(op, "L") != 0) && (strcmp(op, "R") != 0))){
                     	printf("%s\n", msg);
                     	n = write_buf_SIGPIPE(TCP_FDS[user_atual].fd_tcp, msg);
                    		if (n == -1) {
@@ -659,9 +624,9 @@ int main(int argc, char *argv[]) {
                                 ERR = FILE_ERR;
                             }
                             // Esta tudo bem por agora (nao houve erro nenhum), ou seja, vai guarda na estrutura de dados e vai pedir validacao ao AS
-                            else
+                            else{
                                 setFD_TCP(UID, TID, "D", reply_msg, FileName, i);
-                            fclose(fp);
+                            }
                             closedir(d);
                         } else
                             ERR = REQ_ERR;
@@ -706,7 +671,6 @@ int main(int argc, char *argv[]) {
                                 ERR = FILE_ERR;
                             } else
                                 setFD_TCP(UID, TID, "R", reply_msg, FileName, i);
-                            fclose(fp);
                             closedir(d);
                         } else
                             ERR = REQ_ERR;
@@ -733,7 +697,7 @@ int main(int argc, char *argv[]) {
                                 //cria file temporario
                                 else {
                                     strcat(DIR_PATH, "_TMP");
-                                    upload_file(i, tcp_buffer, DIR_PATH, bytes_data, sizeof(tcp_buffer), atoi(FileSize));
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
                                 }
                             } else if (errno == ENOENT) {
                                 //cria directory temp e file temp
@@ -750,11 +714,9 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 strcat(DIR_PATH, "_TMP");
-                                upload_file(i, tcp_buffer, DIR_PATH, bytes_data, sizeof(tcp_buffer), atoi(FileSize));
-                                
+                                recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
                             }
                             closedir(d);
-                            printf("%s %s %s %s %d\n", UID, TID, reply_msg, FileName, i);
                             setFD_TCP(UID, TID, "U", reply_msg, FileName, i);
                         }
                         else
@@ -765,19 +727,20 @@ int main(int argc, char *argv[]) {
                         ERR = UNX_ERR;
 
                     // verifica se houve algum erro
-                    if (ERR) {
+                    if (ERR > 0) {
                         if (ERR == UNX_ERR)
-                            strcpy(reply_msg, "ERR");
+                            strcpy(reply_msg, "ERR\n");
                         else if (ERR == REQ_ERR)
-                            strcat(reply_msg, " ERR");
+                            strcat(reply_msg, " ERR\n");
                         else if (ERR == DIR_ERR)
-                            strcat(reply_msg, " NOK");
-                        else if (ERR == FILE_ERR)
-                            strcat(reply_msg, " EOF");
+                            strcat(reply_msg, " NOK\n");
+                        else if (ERR == FILE_ERR){
+                            strcat(reply_msg, " EOF\n");
+                        }
                         else if (ERR == DUP_ERR)
-                            strcat(reply_msg, " DUP");
+                            strcat(reply_msg, " DUP\n");
                         else if (ERR == FULL_ERR)
-                            strcat(reply_msg, " FULL");
+                            strcat(reply_msg, " FULL\n");
                         n = write_buf_SIGPIPE(i, reply_msg);
                         if (n == -1) {
                             //Conexao ja estava terminada
@@ -785,19 +748,19 @@ int main(int argc, char *argv[]) {
                         }
                         retval--;
                         close(i);
-                        continue;
+                        FD_CLR(i, &active_fd_set);
                     }
-                    // Se nao houve erro, manda mensagem ao AS para validar a transacao
-                    printf("%s", msg);
-                    n_udp = sendto(udp_fd, msg, strlen(msg), 0, res_udp->ai_addr, res_udp->ai_addrlen);
-                    FD_SET(udp_fd, &active_fd_set);
-                    FD_CLR(i, &active_fd_set);
-                    printf("%d\n",udp_fd );
-                    AS_waiting_answer++;
-                    if (udp_fd > maxfd)
-                        maxfd = udp_fd;
-                    retval--;
-                    printf("ok\n");
+                    else{
+                   	 	// Se nao houve erro, manda mensagem ao AS para validar a transacao
+                    	n_udp = sendto(udp_fd, msg, strlen(msg), 0, res_udp->ai_addr, res_udp->ai_addrlen);
+                    	FD_SET(udp_fd, &active_fd_set);
+                    	close(i);
+                    	FD_CLR(i, &active_fd_set);
+                    	AS_waiting_answer++;
+                    	if (udp_fd > maxfd)
+                        	maxfd = udp_fd;
+                    	retval--;
+                    }
                 }
             }
         }

@@ -291,7 +291,8 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else{
-				n = read_buf(fdFS, buffer, BUFFER_SIZE);
+				n = read_buf(fdFS, buffer, sizeof(buffer));
+				printf("%s\n", buffer);
 				write(1, "echo: ", 6); write(1, buffer, n); //check if rcode/status are valid
 				//read_buf rupl, rdel, rrem + stdout
 			}
