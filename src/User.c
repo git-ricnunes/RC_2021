@@ -204,6 +204,8 @@ int main(int argc, char *argv[]){
 			fprintf(stderr, "Invalid command\n");
 			exit(1);
 		}
+
+		memset(buffer, 0, BUFFER_SIZE);
 		
 		if (fd == AS_FD_SET){
 
@@ -292,7 +294,7 @@ int main(int argc, char *argv[]){
 			}
 			else{
 				n = read_buf(fdFS, buffer, sizeof(buffer));
-				printf("%s\n", buffer);
+
 				write(1, "echo: ", 6); write(1, buffer, n); //check if rcode/status are valid
 				//read_buf rupl, rdel, rrem + stdout
 			}

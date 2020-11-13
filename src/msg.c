@@ -21,7 +21,7 @@ void write_buf(int fd, char* buf) {
         }
 
         n_sum += n_sent;
-        if (n_sum == n_msg) /* All bytes written */
+        if (n_sum >= n_msg) /* All bytes written */
             return;
         else { /* Still bytes left to write */
             buf += n_sent;
@@ -38,7 +38,7 @@ int write_buf_SIGPIPE(int fd, char* buf) {
 
     while (1) {
         n_sent = write(fd, buf, (n_msg - n_sum));
-        printf("%s\n", buf);
+
         if (n_sent == -1) { /* Err */
             if (errno != EPIPE) {
                 fprintf(stderr,
@@ -54,7 +54,7 @@ int write_buf_SIGPIPE(int fd, char* buf) {
         }
 
         n_sum += n_sent;
-        if (n_sum == n_msg) /* All bytes written */
+        if (n_sum >= n_msg) /* All bytes written */
             return 0;
         else { /* Still bytes left to write */
             buf += n_sent;
@@ -66,9 +66,9 @@ int write_buf_SIGPIPE(int fd, char* buf) {
 /* Ensures a message was completely read and saved into a given buffer from a specified file descriptor, i.e. once the character '\n' is reached */
 int read_buf(int fd, char* buf, int bufsize) {
     int n_sum = 0;
-    int n_buf = bufsize;
     int n_rec;
-    memset(buf, 0, bufsize);
+    char* old_buf = buf;
+
     while (1) {
         n_rec = read(fd, buf, (bufsize - n_sum));
 
@@ -78,7 +78,7 @@ int read_buf(int fd, char* buf, int bufsize) {
             exit(1);
         }
         n_sum += n_rec;
-        if (buf[n_sum - 1] == '\n') /* All bytes read */
+        if (old_buf[n_sum - 1] == '\n') /* All bytes read */
             return n_sum;
         else { /* Still bytes left to read */
             buf += n_rec;
@@ -91,9 +91,9 @@ int read_buf(int fd, char* buf, int bufsize) {
  from a specified file descriptor, i.e. once the character '\n' is reached */
 int read_buf_AS(int fd, char* buf, int bufsize) {
     int n_sum = 0;
-    int n_buf = bufsize;
     int n_rec;
-    memset(buf, 0, bufsize);
+    char* old_buf = buf;
+
     while (1) {
         n_rec = read(fd, buf, (bufsize - n_sum));
 
@@ -103,9 +103,9 @@ int read_buf_AS(int fd, char* buf, int bufsize) {
             exit(1);
         }
         n_sum += n_rec;
-        if (buf[n_sum - 1] == '\n') /* All bytes read */
+        if (old_buf[n_sum - 1] == '\n') /* All bytes read */
             return n_sum;
-        else if (buf[n_sum - 1] == '\0') /* All bytes read */
+        else if (old_buf[n_sum - 1] == '\0') /* All bytes read */
             return n_sum;
         else { /* Still bytes left to read */
             buf += n_rec;
@@ -118,6 +118,7 @@ int read_buf_AS(int fd, char* buf, int bufsize) {
 int read_buf_LIMIT(int fd, char* buf, int bufsize, int n_lim) {
     int n_sum = 0;
     int n_rec;
+    char* old_buf = buf;
 
     while (1) {
         n_rec = read(fd, buf, (bufsize - n_sum));
@@ -129,7 +130,7 @@ int read_buf_LIMIT(int fd, char* buf, int bufsize, int n_lim) {
         }
 
         n_sum += n_rec;
-        if ((buf[n_sum - 1] == '\n') || (n_sum > n_lim)) /* Limit surpassed, enough bytes read */
+        if ((old_buf[n_sum - 1] == '\n') || (n_sum > n_lim)) /* Limit surpassed, enough bytes read */
             return n_sum;
         else { /* Still bytes left to read */
             buf += n_rec;
