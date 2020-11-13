@@ -15,8 +15,6 @@ void write_buf(int fd, char* buf) {
             exit(1);
         }
 
-        printf("write: %s", buf);
-
         n_sum += n_sent;
         if (n_sum == n_msg) /* All bytes written */
             return;
