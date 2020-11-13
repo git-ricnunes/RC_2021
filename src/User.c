@@ -260,8 +260,8 @@ int main(int argc, char *argv[]){
 				send_file(fdFS, fname, SP_IGNORE);
 
 			if (!strcmp(code, "LST")){
-				read_buf(fdFS, buffer); //read_buf_LIMIT?
-				write(1, "echo: ", 6); write(1, buffer, n);
+				n = read_buf(fdFS, fbuffer, FBUFFER_SIZE); //read_buf_LIMIT?
+				write(1, "echo: ", 6); write(1, fbuffer, n);
 				//strtok to show one file per line
 				//working but still needs to check for unexpected protocol messages
 			}
@@ -291,7 +291,7 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else{
-				read_buf(fdFS, buffer);
+				n = read_buf(fdFS, buffer, BUFFER_SIZE);
 				write(1, "echo: ", 6); write(1, buffer, n); //check if rcode/status are valid
 				//read_buf rupl, rdel, rrem + stdout
 			}
