@@ -70,28 +70,38 @@ void send_file(int fd, char *fname, int sp){
 	}
 }
 
-void recv_file(int fd, FILE * fp, int fsize, char * buffer, int buffer_size){
+void recv_file(int fd, char *fname, int fsize, char *initial_data, int initial_data_size){
 	int n_sum = 0;
-	int n_read;
+	int n_read = initial_data_size;
 	int n_wrtn;
+	FILE * fp = fopen(fname, "a");
+	if (!fp){
+		fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
+		fprintf(stderr, "Error code: %d\n", errno);
+		exit(1);
+	}
+	/* Read initial data */
+	if (initial_data_size > fsize)
+		n_read = fsize;
+	n_wrtn = fwrite(initial_data, 1, n_read, fp); //fwrite = write? (write all characters read)
 	while(1){
-		if (strlen(buffer) > 0){ /* Write initial data to file if there is any */
-			n_wrtn = fwrite(buffer, 1, strlen(buffer), fp); //fwrite = write? (write all characters read)
-			if (n_wrtn == -1) { /* Err */
-            	fprintf(stderr, "Error: failed to write data to file\n");
-            	fprintf(stderr, "Error code: %d\n", errno);
-            	exit(1);
-        	}
-        	n_sum += n_wrtn;
-		}
-		if ((fsize == (n_sum - 1)) && (buffer[strlen(buffer) - 1] == '\n'))
+		if (n_wrtn == -1) { /* Err, SIGPIPE or nah? ((probably not))*/
+            fprintf(stderr, "Error: failed to write data to file\n");
+            fprintf(stderr, "Error code: %d\n", errno);
+            exit(1);
+        }
+        n_sum += n_wrtn;
+		if (n_sum >= fsize){
+			fclose(fp);
 			return;
-		memset(buffer, 0, buffer_size);
-		n_read = read(fd, buffer, buffer_size);
+		}
+		memset(data, 0, DATA_SIZE);
+		n_read = read(fd, data, DATA_SIZE);
 		if (n_read == -1) { /* Err */
             fprintf(stderr, "Error: failed to read data\n");
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }
+        n_wrtn = fwrite(data, 1, n_read, fp); //fwrite = write? (write all characters read)
 	}
 }

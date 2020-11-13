@@ -30,6 +30,7 @@
 #define RID_SIZE 5
 #define TID_SIZE 5
 #define FNAME_SIZE 25
+#define FSIZE_SIZE 11
 #define RRT_SIZE 18
 #define STATUS_SIZE 6
 #define LOGGED_IN 1
@@ -108,7 +109,6 @@ int main(int argc, char *argv[]){
 
 	printf("Connected to Authentication Server ""%s"" in port %s\n", ipAS, portAS);
 
-	FILE * fp;
 	char buffer[BUFFER_SIZE];
 	char fbuffer[FBUFFER_SIZE];
 	char msg[BUFFER_SIZE];
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]){
 	char rid[RID_SIZE] = "";
 	char tid[TID_SIZE] = "0";
 	char fname[FNAME_SIZE] = "";
-	int fsize;
+	char sfsize[FSIZE_SIZE] = "";
 	char rcode[CODE_SIZE] = "";
 	char status[STATUS_SIZE] = "";
 	int session = LOGGED_OUT;
@@ -178,10 +178,8 @@ int main(int argc, char *argv[]){
 		}
 		else if ((!strcmp(token_list[0], "upload") || !strcmp(token_list[0], "u")) && num_tokens == 2){ /* UPL UID TID Fname Fsize data */
 			sprintf(code, "UPL");
-			if (strlen(token_list[1]) >= FNAME_SIZE){
-				fprintf(stderr, "ERR\n");
-				exit(1);
-			}
+			if (strlen(token_list[1]) >= FNAME_SIZE)
+				unexpected_protocol();
 			strcpy(fname, token_list[1]);
 			sprintf(msg, "%s %s %s %s ", code, uid, tid, fname);
 			fd = FS_FD_SET;
@@ -223,10 +221,8 @@ int main(int argc, char *argv[]){
 				if (strcmp(status, "0"))
 					strcpy(tid, status);
 			}
-			else if (strcmp(code, "REQ") || strcmp(rcode, "RRQ")){
-				fprintf(stderr, "ERR\n");
-				exit(1);
-			}
+			else if (strcmp(code, "REQ") || strcmp(rcode, "RRQ"))
+				unexpected_protocol();
 
 			write(1, "echo: ", 6); write(1, buffer, n);
 		}
@@ -268,37 +264,31 @@ int main(int argc, char *argv[]){
 			}
 			else if (!strcmp(code, "RTV")){
 				n = read_buf_LIMIT(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE);
-				sscanf(fbuffer, "%s %s %d %s", rcode, status, &fsize, data);
-				if (strcmp(rcode, "RRT") || n < (CODE_SIZE + 4)){
-					fprintf(stderr, "ERR\n");
-					exit(1);
-				}
+				sscanf(fbuffer, "%s %s %s", rcode, status, sfsize);
+				if (strcmp(rcode, "RRT") || n < (CODE_SIZE + 4))
+					unexpected_protocol();
 				else{
 					if (n == (CODE_SIZE + 4)){
 						if (!strcmp(status, "EOF") || !strcmp(status, "NOK") || !strcmp(status, "INV") || !strcmp(status, "ERR")){
 							write(1, "echo: ", 6); write(1, fbuffer, n);
 						}
-						else{
-							fprintf(stderr, "ERR\n");
-							exit(1);
-						}
+						else
+							unexpected_protocol();
 					}
 					else if (!strcmp(status, "OK")){
+						if (strlen(sfsize) > 10)
+							unexpected_protocol();
+						int n_offset = strlen(rcode) + 1 + strlen(status) + 1 + strlen(sfsize) + 1;
+						int fsize = atoi(sfsize);
 						write(1, "echo: RRT OK\n", 13);
 						printf("Retrieving ""%s""...\n", fname); //clean up later
-						fp = fopen(fname, "a");
-						if (!fp){
-							fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
-							fprintf(stderr, "Error code: %d\n", errno);
-							exit(1);
-						}
-						recv_file(fdFS, fp, fsize, data, FBUFFER_SIZE);
-						fclose(fp);
+						recv_file(fdFS, fname, fsize, fbuffer + n_offset, n - n_offset);
 						printf("Done!\n");
 					}
 				}
 			}
 			else{
+				//read_buf fs
 				write(1, "echo: ", 6); write(1, fbuffer, n); //check if rcode/status are valid
 				//read_buf rupl, rdel, rrem + stdout
 			}

@@ -14,6 +14,6 @@
 char data[DATA_SIZE];
 
 void send_file(int fd, char *fname, int sp);
-void recv_file(int fd, FILE * fp, int fsize, char * buffer, int buffer_size);
+void recv_file(int fd, char *fname, int fsize, char *initial_data, int initial_data_size);
 
 #endif
