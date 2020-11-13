@@ -181,7 +181,6 @@ int ListDir(char *dirname, int fd) {
     nfiles = Number_of_files(dirname);
     sprintf(n_files, "%d", nfiles);
     strcat(msg, n_files);
-    strcat(msg, "\n");
     strcpy(temp, dirname);
     d = opendir(dirname);
     if (d) {
@@ -197,7 +196,7 @@ int ListDir(char *dirname, int fd) {
             	strcat(msg, " ");
             	sprintf(file_size, "%d", filesize);
             	strcat(msg, file_size);
-            	strcat(msg, "\n");
+            	strcat(msg, " ");
             	n_sent = write_buf_SIGPIPE(fd, msg);
             	if (n_sent == -1)
 					return n_sent;
@@ -205,6 +204,8 @@ int ListDir(char *dirname, int fd) {
             	strcpy(temp, dirname);
             }    
         }
+        sprintf(msg, "\n");
+        n_sent = write_buf_SIGPIPE(fd, msg);
     } 
     else if (errno == ENOENT) {
         printf("Directory does not exist\n");
@@ -358,13 +359,13 @@ int main(int argc, char *argv[]) {
             memset(TID, 0, sizeof(TID));
             memset(FileName, 0, sizeof(FileName));
             memset(FileSize, 0, sizeof(FileSize));
+            memset(DIR_PATH, 0, sizeof(DIR_PATH));
             memset(Data, 0, sizeof(Data));
             strcpy(DIR_PATH, DIR_PATH_INIT);
             ERR = 0;
             num_tokens = 0;
             if (!retval)
                 break;
-            printf("%d\n", i);
             if (FD_ISSET(i, &temp_fd_set)) {
                 // Recebe conexao nova (NOVO USER)
                 if (i == tcp_fd) {
@@ -403,8 +404,9 @@ int main(int argc, char *argv[]) {
                     //LIST
                     if (strcmp(op, "E") == 0)
                         ERR = AS_ERR;
-                    else if (strcmp(CNF, "CNF") != 0)
+                    else if (strcmp(CNF, "CNF") != 0){
                         ERR = UNX_ERR;
+                    }
                     else if (strcmp(op, TCP_FDS[user_atual].op) != 0)
                         ERR = AS_ERR;
                     else if ((strcmp(op, "L") == 0) && (num_tokens == 4)) {
@@ -416,7 +418,7 @@ int main(int argc, char *argv[]) {
                    		}
                     }
                     else if ((strcmp(op, "R") == 0) && (num_tokens == 5)) {
-                        if (!strcmp(FileName, TCP_FDS[user_atual].filename))
+                        if (strcmp(FileName, TCP_FDS[user_atual].filename) != 0)
                             ERR = AS_ERR;
                         //Recupera o conteudo do ficheiro "FileName"
                         else {
@@ -651,16 +653,17 @@ int main(int argc, char *argv[]) {
                         if ((num_tokens == 4) && (strlen(UID) == UID_SIZE - 1) && (strlen(TID) == TID_SIZE - 1) && (strlen(FileName) <= F_NAME_SIZE - 1)) {
                             // Agora vai verificar se o UID tem conteudos no FS
                             strcat(DIR_PATH, UID);
-                            d = opendir(DIR_PATH);
+                            strcpy(temp, DIR_PATH);
                             strcat(DIR_PATH, "/");
                             strcat(DIR_PATH, FileName);
+                            d = opendir(DIR_PATH);
                             // 'ENOENT' significa que directoria nao existe -> NOK
                             if (errno == ENOENT) {
                                 printf("Directory does not exist\n");
                                 ERR = DIR_ERR;
                             }
                             //Directoria nao tem ficheiros(situacao em que se faz upload de um ficheiro e depois remove-se o mesmo) -> NOK
-                            else if (Number_of_files(DIR_PATH) == 0) {
+                            else if (Number_of_files(temp) == 0) {
                                 printf("UID %s nao tem conteudo no FS\n", UID);
                                 ERR = DIR_ERR;
                             }
@@ -668,8 +671,9 @@ int main(int argc, char *argv[]) {
                             else if ((fp = fopen(DIR_PATH, "r")) == NULL) {
                                 printf("Ficheiro nao existe na directoria do UID %s\n", UID);
                                 ERR = FILE_ERR;
-                            } else
+                            } else{
                                 setFD_TCP(UID, TID, "R", reply_msg, FileName, i);
+                            }
                             closedir(d);
                         } else
                             ERR = REQ_ERR;
@@ -685,7 +689,7 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 //significa que ja existe
-                                if ((fp = fopen(DIR_PATH, "r"))) {
+                                if ((fp = fopen(DIR_PATH, "r")) != NULL) {
                                     printf("Ficheiro ja existe\n");
                                     ERR = DUP_ERR;
                                     fclose(fp);
