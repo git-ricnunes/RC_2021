@@ -30,7 +30,7 @@
 #define DIR_PATH_INIT "USERS/"
 #define TIMEOUT_DEFAULT 20
 #define MAX_BYTES 51
-#define BUFFER_SIZE 128
+#define BUFFER_SIZE 1024
 #define UID_SIZE 6
 #define TID_SIZE 5
 #define F_NAME_SIZE 25
@@ -135,7 +135,7 @@ int Number_of_files(char *dirname) {
         }
     } else if (errno == ENOENT) {
         printf("Directory does not exist\n");
-        exit(1);
+        return 0;
     } else {
         printf("ERROR: %d\n", errno);
         exit(1);
@@ -424,6 +424,7 @@ int main(int argc, char *argv[]) {
                         else {
                         	strcat(DIR_PATH, "/");
                         	strcat(DIR_PATH, FileName);
+                        	printf("RetrieveFile\n");
                         	n = RetrieveFile(DIR_PATH, TCP_FDS[user_atual].fd_tcp);
                         	if (n == -1) {
                        			//Conexao ja estava terminada
@@ -589,7 +590,7 @@ int main(int argc, char *argv[]) {
                         //verifica se o pedido foi bem formulado
                         if ((num_tokens == 3) && (strlen(UID) == UID_SIZE - 1) && (strlen(TID) == TID_SIZE - 1)) {
                             strcat(DIR_PATH, UID);
-                            if (!(Number_of_files(DIR_PATH))) {
+                            if ((Number_of_files(DIR_PATH)) == 0) {
                                 printf("Nao existem ficheiros nesta diretoria\n");
                                 ERR = FILE_ERR;
                             } else
