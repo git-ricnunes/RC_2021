@@ -10,7 +10,12 @@ void write_buf(int fd, char* buf) {
         n_sent = write(fd, buf, (n_msg - n_sum));
 
         if (n_sent == -1) { /* Err */
-            fprintf(stderr, "Error: failed to send ""%s""\n", buf);
+            fprintf(stderr,
+                    "Error: failed to send "
+                    "%s"
+                    "\n",
+                    buf);
+
             fprintf(stderr, "Error code: %d\n", errno);
             exit(1);
         }
@@ -36,7 +41,11 @@ int write_buf_SIGPIPE(int fd, char* buf) {
         printf("%s\n", buf);
         if (n_sent == -1) { /* Err */
             if (errno != EPIPE) {
-                fprintf(stderr, "Error: failed to send ""%s""\n", buf);
+                fprintf(stderr,
+                        "Error: failed to send "
+                        "%s"
+                        "\n",
+                        buf);
                 fprintf(stderr, "Error code: %d\n", errno);
                 exit(1);
             } else {
@@ -70,6 +79,33 @@ int read_buf(int fd, char* buf, int bufsize) {
         }
         n_sum += n_rec;
         if (buf[n_sum - 1] == '\n') /* All bytes read */
+            return n_sum;
+        else { /* Still bytes left to read */
+            buf += n_rec;
+            continue;
+        }
+    }
+}
+
+/* Ensures a message was completely read and saved into a given buffer,even if its a empty message (NULL) from killing a client socket,
+ from a specified file descriptor, i.e. once the character '\n' is reached */
+int read_buf_AS(int fd, char* buf, int bufsize) {
+    int n_sum = 0;
+    int n_buf = bufsize;
+    int n_rec;
+    memset(buf, 0, bufsize);
+    while (1) {
+        n_rec = read(fd, buf, (bufsize - n_sum));
+
+        if (n_rec == -1) { /* Err */
+            fprintf(stderr, "Error: failed to read message\n");
+            fprintf(stderr, "Error code: %d\n", errno);
+            exit(1);
+        }
+        n_sum += n_rec;
+        if (buf[n_sum - 1] == '\n') /* All bytes read */
+            return n_sum;
+        else if (buf[n_sum - 1] == '\0') /* All bytes read */
             return n_sum;
         else { /* Still bytes left to read */
             buf += n_rec;

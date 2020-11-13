@@ -592,7 +592,7 @@ int main(int argc, char *argv[]) {
                         char status[10] = "";
                         int uindex = 0;
 
-                        n = read_buf(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
+                        n = read_buf_AS(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
 
                         verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
 

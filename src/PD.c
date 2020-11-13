@@ -165,10 +165,6 @@ int main(int argc, char *argv[]) {
         char buffer[128];
 
         retval = select(maxfd + 1, &rfds, (fd_set *)NULL, (fd_set *)NULL, (struct timeval *)NULL);
-        /*if (retval = 0) {
-            printf("Error: UDP  socket timeout\n");
-            exit(0);
-        }*/
 
         for (; retval; retval--) {
             if (FD_ISSET(0, &rfds)) {
@@ -283,7 +279,7 @@ int main(int argc, char *argv[]) {
                 ns = sendto(fds, msg, strlen(msg), 0, (struct sockaddr *)&addr, addrlen);
 
                 if (ns < 0) {
-                    printf("Error: .\n");
+                    printf("Error:\n");
                     printf("Error code: %d\n", errno);
                     exit(1);
                 }
