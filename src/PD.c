@@ -223,7 +223,8 @@ int main(int argc, char *argv[]) {
                         write(1, "bye\n", 4);
                         return 0;
                     } else if (strcmp(status, "NOK") == 0) {
-                        write(1, "Falha na remocao de registo\n", 28);
+                        write(1, "Error removing user\n", 20);
+                        return -1;
                     }
                 } else {
                     strcat(msg, "ERR");

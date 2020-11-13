@@ -180,10 +180,9 @@ void structChecker(int flagVerboseMode, struct user_st *arr_user) {
                arr_user[j].numreq);
         if (arr_user[j].numreq > 0) {
             for (int k = 0; k < arr_user[j].numreq; k++) {
-                printf("   ->RID:%s VC:%s VCused?:%d OP:%c filename:%s TID:%s \n",
+                printf("   ->RID:%s VC:%s OP:%c filename:%s TID:%s \n",
                        arr_user[j].arr_req[k].RID,
                        arr_user[j].arr_req[k].VC,
-                       arr_user[j].arr_req[k].vcUsed,
                        arr_user[j].arr_req[k].op[0],
                        arr_user[j].arr_req[k].fileName,
                        arr_user[j].arr_req[k].TID);
@@ -554,7 +553,7 @@ int main(int argc, char *argv[]) {
                             strcpy(tempTID, st_r.TID);
                             tempOP = st_r.op[0];
 
-                            sprintf(msg, "CNF %s %s %c \n", user, st_r.TID, st_r.op[0]);
+                            sprintf(msg, "CNF %s %s %c\n", user, st_r.TID, st_r.op[0]);
 
                             for (int i = 0; i <= numUsers; i++) {
                                 if (strcmp(arr_user[i].uid, st_u.uid) == 0) {
@@ -564,7 +563,7 @@ int main(int argc, char *argv[]) {
                             }
                         } else {
                             // Caso contrario envia confirmacao de pedido sem argumento opcional
-                            sprintf(msg, "CNF %s %s %c \n", user, st_r.TID, st_r.op[0]);
+                            sprintf(msg, "CNF %s %s %c\n", user, st_r.TID, st_r.op[0]);
                         }
                     }
                 } else {
@@ -686,12 +685,13 @@ int main(int argc, char *argv[]) {
                                     sprintf(tcp_msg, "RRQ EFOP\n");
 
                                 } else {
-                                    // caso contratio actualizar a estrutura dos pedidos para o user
+                                    // caso contrario actualizar a estrutura dos pedidos para o user
                                     // e envia resposta ao user
                                     struct request_st st_r;
                                     char tidString[10];
 
-                                    sprintf(tidString, "%d", ++TID);
+                                    sprintf(tidString, "%04d", ++TID);
+
                                     strcpy(st_r.RID, arg1);
                                     strcpy(st_r.op, arg2);
                                     strcpy(st_r.fileName, arg3);
@@ -708,7 +708,7 @@ int main(int argc, char *argv[]) {
                         } else if (strcmp(op, "AUT") == 0) {
                             struct request_st st_r;
                             char tidString[500];
-                            sprintf(tidString, "%d", 0);
+                            sprintf(tidString, "%04d", 0);
 
                             // Verifica se o utilizador que pretende fazer a autorizacao existe
                             for (int i = 0; i <= numUsers; i++) {
