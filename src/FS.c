@@ -164,7 +164,7 @@ int Number_of_files(char *dirname) {
     return files;
 }
 int checkSizeFile(char *filename){
-	int res;
+	long res;
 	FILE *fp = fopen(filename, "r");
 	if (fp == NULL) { 
         printf("File Not Found!\n"); 
@@ -398,7 +398,6 @@ int main(int argc, char *argv[]) {
             if (FD_ISSET(i, &temp_fd_set)) {
                 // Recebe conexao nova (NOVO USER)
                 if (i == tcp_fd) {
-                	printf("MENSAGEM RECEBIDA- nova conexao %d\n", i);
                     addrlen_tcp = sizeof(addr_tcp);
                     if ((newfd_tcp = accept(tcp_fd, (struct sockaddr *)&addr_tcp, &addrlen_tcp)) == -1) {
                         printf("%s %s\n", "error server-accept:", strerror(errno));
@@ -567,13 +566,11 @@ int main(int argc, char *argv[]) {
                             strcat(DIR_PATH, TCP_FDS[user_atual].uid);
                             strcpy(temp, DIR_PATH);
                             strcat(DIR_PATH, "_TMP");
-                            printf("%s\n", DIR_PATH);
                             d = opendir(DIR_PATH);
                             if (d) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, TCP_FDS[user_atual].filename);
                                 strcat(DIR_PATH, "_TMP");
-                                printf("%s\n", DIR_PATH);
                                 if (remove(DIR_PATH) == 0)
                                     printf("TMP FILE DELETED\n");
                                 else
@@ -765,7 +762,6 @@ int main(int argc, char *argv[]) {
                             d = opendir(DIR_PATH);
                             if (d) {
                                 n_files = Number_of_files(DIR_PATH);
-                                printf("%d\n", n_files);
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 fp = fopen(DIR_PATH, "r");
