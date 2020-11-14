@@ -477,7 +477,8 @@ int main(int argc, char *argv[]){
 							exit(1);
 						}
 						printf("File %s successfully retrieved\n", fname);
-						printf("PATH: %s\\%s SIZE: %ld\n", cwd, fname, fsize);
+						printf("PATH: %s/%s\n", cwd, fname);
+						printf("SIZE: %ld bytes\n", fsize);
 					}
 				}
 			}
