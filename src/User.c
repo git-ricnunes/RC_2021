@@ -427,15 +427,13 @@ int main(int argc, char *argv[]){
 						fsize = atoi(sfsize);
 						write(1, "FS: RRT OK\n", 11);
 						printf("Retrieving ""%s""...\n", fname); //clean up later
-						recv_file(fdFS, fname, fsize, fbuffer + n_offset, n - n_offset);
+						recv_file(fdFS, fname, fsize, fbuffer + n_offset, n - n_offset, F_NEXISTS);
 						printf("Done!\n");
 					}
 				}
 			}
 			else{
-				printf("waiting\n");
 				n = read_buf(fdFS, buffer, BUFFER_SIZE, LIM_IGNORE, NULL_IGNORE);
-				printf("read!\n");
 				sscanf(buffer, "%s %s", rcode, status);
 				if ((strcmp(code, "UPL") || strcmp(rcode, "RUP") || n > (CODE_SIZE + 5)) && (strcmp(code, "DEL") || strcmp(rcode, "RDL") || n > (CODE_SIZE + 4)) && (strcmp(code, "REM") || strcmp(rcode, "RRM") || n > (CODE_SIZE + 4)))
 					unexpected_protocol_FS();
