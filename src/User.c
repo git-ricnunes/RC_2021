@@ -335,9 +335,9 @@ int main(int argc, char *argv[]){
 		
 		if (fd == AS_FD_SET){
 
-			write_buf(fdAS, msg);
+			write_buf(fdAS, msg, strlen(msg));
 		
-			n = read_buf(fdAS, buffer, sizeof(buffer));
+			n = read_buf(fdAS, buffer, BUFFER_SIZE, LIM_IGNORE, NULL_IGNORE);
 
 			sscanf(buffer, "%s %s", rcode, status);
 
@@ -383,12 +383,12 @@ int main(int argc, char *argv[]){
 
 			printf("Connected to File Server ""%s"" in port %s\n", ipFS, portFS);
 
-			write_buf(fdFS, msg);
+			write_buf(fdFS, msg, strlen(msg));
 			if (!strcmp(code, "UPL"))
 				send_file(fdFS, fname, SP_IGNORE);
 
 			if (!strcmp(code, "LST")){
-				n = read_buf(fdFS, fbuffer, FBUFFER_SIZE);
+				n = read_buf(fdFS, fbuffer, FBUFFER_SIZE, LIM_IGNORE, NULL_IGNORE);
 				sscanf(fbuffer, "%s %s", rcode, status);
 				if (strcmp(rcode, "RLS") || n < (CODE_SIZE + 4))
 					unexpected_protocol_FS();
@@ -408,7 +408,7 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else if (!strcmp(code, "RTV")){
-				n = read_buf_LIMIT(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE);
+				n = read_buf(fdFS, fbuffer, FBUFFER_SIZE, RRT_SIZE, NULL_IGNORE);
 				sscanf(fbuffer, "%s %s %s", rcode, status, sfsize);
 				if (strcmp(rcode, "RRT") || n < (CODE_SIZE + 4))
 					unexpected_protocol_FS();
@@ -433,7 +433,9 @@ int main(int argc, char *argv[]){
 				}
 			}
 			else{
-				n = read_buf(fdFS, buffer, sizeof(buffer));
+				printf("waiting\n");
+				n = read_buf(fdFS, buffer, BUFFER_SIZE, LIM_IGNORE, NULL_IGNORE);
+				printf("read!\n");
 				sscanf(buffer, "%s %s", rcode, status);
 				if ((strcmp(code, "UPL") || strcmp(rcode, "RUP") || n > (CODE_SIZE + 5)) && (strcmp(code, "DEL") || strcmp(rcode, "RDL") || n > (CODE_SIZE + 4)) && (strcmp(code, "REM") || strcmp(rcode, "RRM") || n > (CODE_SIZE + 4)))
 					unexpected_protocol_FS();

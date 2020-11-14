@@ -7,10 +7,12 @@
 #include <string.h>
 #include <unistd.h>
 
-void write_buf(int fd, char* buf);
-int write_buf_SIGPIPE(int fd, char* buf);
-int read_buf(int fd, char* buf, int bufsize);
-int read_buf_AS(int fd, char* buf, int bufsize);
-int read_buf_LIMIT(int fd, char* buf, int bufsize, int n_lim);
+#define NULL_CHECK 1
+#define NULL_IGNORE 0
+#define LIM_IGNORE -1
+
+void write_buf(int fd, char* buf, int n);
+int write_buf_SIGPIPE(int fd, char* buf, int n);
+int read_buf(int fd, char* buf, int n, int n_lim, int check_null);
 
 #endif
