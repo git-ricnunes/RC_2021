@@ -172,8 +172,9 @@ int RetrieveFile(char *filename, int fd){
 int ListDir(char *dirname, int fd) {
 	char msg[100] = "";
     DIR *d;
+    int n_atual = 0;
     struct dirent *dir;
-	char n_files[2];
+	char n_files[4];
 	char file_size[F_SIZE];
 	char temp[50];
 	int nfiles, filesize;
@@ -190,6 +191,7 @@ int ListDir(char *dirname, int fd) {
                 // do nothing
             }
             else{
+                n_atual++;
             	strcat(temp, "/");
             	strcat(temp, dir->d_name);
             	filesize = checkSizeFile(temp);
@@ -197,7 +199,8 @@ int ListDir(char *dirname, int fd) {
             	strcat(msg, " ");
             	sprintf(file_size, "%d", filesize);
             	strcat(msg, file_size);
-            	strcat(msg, " ");
+                if(n_atual < nfiles)
+            	   strcat(msg, " ");
             	n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
             	if (n_sent == -1)
 					return n_sent;
