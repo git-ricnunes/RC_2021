@@ -588,7 +588,7 @@ int main(int argc, char *argv[]) {
                 else {
                 	printf("MENSAGEM RECEBIDA USER %d\n", i);
                     memset(reply_msg, 0, sizeof(reply_msg));
-                    n = read_buf_LIMIT(i, tcp_buffer, sizeof(tcp_buffer), MAX_BYTES);
+                    n = read_buf(i, tcp_buffer, sizeof(tcp_buffer), MAX_BYTES, NULL_IGNORE);
                     printf("%s\n", tcp_buffer);
                     foo(i);
                     sscanf(tcp_buffer, "%s %s %s %s %s", op, UID, TID, FileName, FileSize);
