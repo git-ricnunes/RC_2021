@@ -76,12 +76,12 @@ void list_files(char * fbuf, int n){
 	if (num_files%2 != 0)
 		unexpected_protocol_FS();
 
-	printf("N\tFname\t\t\tFsize (bytes)\n");
+	printf("N - Fname - Fsize (bytes)\n");
 	for (int i = 0; i < num_files; i+=2){
 		if (strlen(file_list[i]) >= FNAME_SIZE || strlen(file_list[i+1]) >= FSIZE_SIZE)
 			unexpected_protocol_FS();
 		else
-			printf("%d\t\t\t%s\t%s\n", i/2 + 1, file_list[i], file_list[i+1]);
+			printf("%d - %s - %s\n", i/2 + 1, file_list[i], file_list[i+1]);
 	}
 }
 
@@ -276,9 +276,9 @@ int main(int argc, char *argv[]){
 			fp = fopen(fname, "r");
 			if (fp){
 				printf("File %s already in current directory, please remove the file or request a different file name\n", fname);
+				fclose(fp);
 				continue;
 			}
-			fclose(fp);
 			sprintf(msg, "%s %s %s %s\n", code, uid, tid, fname);
 			fd = FS_FD_SET;
 		}
