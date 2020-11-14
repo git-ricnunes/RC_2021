@@ -44,7 +44,7 @@ struct request_st {
     char VC[5];
     char op[1];
     char fileName[60];
-    char TID[10];
+    char TID[5];
     int vcUsed;
 };
 
@@ -692,7 +692,7 @@ int main(int argc, char *argv[]) {
                                     // caso contrario actualizar a estrutura dos pedidos para o user
                                     // e envia resposta ao user
                                     struct request_st st_r;
-                                    char tidString[10];
+                                    char tidString[5];
 
                                     sprintf(tidString, "%04d", ++TID);
 
@@ -711,8 +711,9 @@ int main(int argc, char *argv[]) {
                             }
                         } else if (strcmp(op, "AUT") == 0) {
                             struct request_st st_r;
-                            char tidString[500];
-                            sprintf(tidString, "%04d", 0);
+                            char tidString[5];
+
+                            sprintf(tidString, "%d", 0);
 
                             // Verifica se o utilizador que pretende fazer a autorizacao existe
                             for (int i = 0; i <= numUsers; i++) {
@@ -721,34 +722,19 @@ int main(int argc, char *argv[]) {
                                     break;
                                 }
                             }
+
                             // Verifica se tem o pedido que pretende autorizar
-                            for (int i = 0; i <= st_u.numreq; i++) {
-                                if (strcmp(st_u.arr_req[i].RID, arg1) == 0) {
+                            for (int i = 0; i < st_u.numreq; i++) {
+                                if (strcmp(st_u.arr_req[i].RID, arg1) == 0 && strcmp(st_u.arr_req[i].VC, arg2) == 0) {
                                     st_r = st_u.arr_req[i];
+                                    strcpy(tidString, st_r.TID);
                                     break;
                                 }
                             }
-                            char vc[5];
-                            strcpy(vc, st_r.VC);
-                            // Verifica se o codigo de validacao esta correto
-                            // e se nao foi utilizado previamente
-
-                            if (strcmp(vc, arg2) == 0 && st_r.vcUsed == 0) {
-                                strcpy(tidString, st_r.TID);
-                                st_r.vcUsed = 1;
-
-                                for (int i = 0; i <= st_u.numreq; i++) {
-                                    if (strcmp(st_u.arr_req[i].RID, arg1) == 0) {
-                                        st_u.arr_req[i] = st_r;
-                                        break;
-                                    }
-                                }
-                            }
-                            // Envia o resultado da validacao do VC
-                            // 0 em caso de VC invalido
-                            // TID em caso de VC valido
 
                             sprintf(tcp_msg, "RAU %s\n", tidString);
+                            memset(tidString, 0, strlen(tidString));
+
                         } else {
                             sprintf(tcp_msg, "ERR\n");
                         }
