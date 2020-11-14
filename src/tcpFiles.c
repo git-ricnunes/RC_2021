@@ -1,7 +1,7 @@
 #include "tcpFiles.h"
 
 void send_file(int fd, char* fname, int sp){
-	int n_sum = 0;
+	long n_sum = 0;
 	int n_read;
 
 	FILE * fp = fopen(fname, "r");
@@ -15,7 +15,7 @@ void send_file(int fd, char* fname, int sp){
 		fprintf(stderr, "Error code: %d\n", errno);
 		exit(1);
 	}
-	int fsize = ftell(fp);
+	long fsize = ftell(fp);
 	if (fsize == -1){
 		fprintf(stderr, "Error: failed to read file ""%s"" size\n", fname);
 		fprintf(stderr, "Error code: %d\n", errno);
@@ -27,7 +27,7 @@ void send_file(int fd, char* fname, int sp){
 	}
 
 	memset(data, 0, DATA_SIZE);
-	sprintf(data, "%d ", fsize);
+	sprintf(data, "%ld ", fsize);
 	if (sp == SP_CHECK){
 		if (write_buf_SIGPIPE(fd, data, strlen(data)) != 0){
 			fclose(fp);
@@ -78,8 +78,8 @@ void send_file(int fd, char* fname, int sp){
 	}
 }
 
-void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_data_size, int dup){
-	int n_sum = 0;
+void recv_file(int fd, char* fname, long fsize, char* initial_data, int initial_data_size, int dup){
+	long n_sum = 0;
 	int n_read = initial_data_size;
 	int n_wrtn;
 	FILE *fp;
