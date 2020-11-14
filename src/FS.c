@@ -65,13 +65,13 @@ typedef struct {
     char reply[6];
     char filename[F_NAME_SIZE];
     int fd_tcp;
+    int used;
 } tcp_FD;
-tcp_FD TCP_FDS[200];
+tcp_FD TCP_FDS[600];
 
 int getFD_TCP(char UID[], char TID[]) {
-    int right_tcp;
     for (int i = 0; i < pos_atual; i++) {
-        if ((strcmp(UID, TCP_FDS[i].uid) == 0) && (strcmp(TID, TCP_FDS[i].tid) == 0))
+        if ((strcmp(UID, TCP_FDS[i].uid) == 0) && (strcmp(TID, TCP_FDS[i].tid) == 0) && (TCP_FDS[i].used == 0))
             return i;
     }
 }
@@ -91,6 +91,7 @@ void setFD_TCP(char *UID, char *TID, char *OP, char *Reply, char *FileName, int 
     strcpy(TCP_FDS[pos_atual].reply, Reply);
     strcpy(TCP_FDS[pos_atual].filename, FileName);
     TCP_FDS[pos_atual].fd_tcp = fd;
+    TCP_FDS[pos_atual].used = 0;
     pos_atual++;
     return;
 }
@@ -100,6 +101,7 @@ void setFD_TCP1(char *UID, char *TID, char *OP, char *Reply, int fd) {
     strcpy(TCP_FDS[pos_atual].op, OP);
     strcpy(TCP_FDS[pos_atual].reply, Reply);
     TCP_FDS[pos_atual].fd_tcp = fd;
+    TCP_FDS[pos_atual].used = 0;
     pos_atual++;
     return;
 }
@@ -107,18 +109,35 @@ void setFD_TCP1(char *UID, char *TID, char *OP, char *Reply, int fd) {
 //Directory Delete function
 void DeleteDirectory(char *dirname) {
     DIR *d;
+    int n;
+    char deleted_file[50];
     struct dirent *dir;
     d = opendir(dirname);
     if (d) {
         while (dir = readdir(d)) {
-            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..")) {
+            memset(deleted_file, 0, sizeof(deleted_file));
+            strcpy(deleted_file, dirname);
+            strcat(deleted_file, "/");
+            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..") || !strncmp(dir->d_name, ".", 1)) {
                 // do nothing
-            } else
-                remove(dir->d_name);
+            } else{
+                strcat(deleted_file, dir->d_name);
+                n = remove(deleted_file);
+                if (n == -1){
+                    printf("%d\n", errno);
+                }
+            }
         }
     }
     closedir(d);
-    remove(dirname);
+    if(remove(dirname) == 0){
+        printf("pasta apagada\n");
+    }
+    else{
+        printf("%d\n", errno);
+    }
+
+    return;
 }
 
 int Number_of_files(char *dirname) {
@@ -128,10 +147,11 @@ int Number_of_files(char *dirname) {
     d = opendir(dirname);
     if (d) {
         while (dir = readdir(d)) {
-            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..")) {
+            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..") || !strncmp(dir->d_name, ".", 1)) {
                 // do nothing
-            } else
+            } else{
                 files++;
+            }
         }
     } else if (errno == ENOENT) {
         printf("Directory does not exist\n");
@@ -152,7 +172,8 @@ int checkSizeFile(char *filename){
     }
     fseek(fp, 0L, SEEK_END);
     res = ftell(fp);
-    fclose(fp);
+    if (fp != NULL)
+        fclose(fp);
     return res;
 
 }
@@ -177,7 +198,8 @@ int ListDir(char *dirname, int fd) {
 	char n_files[4];
 	char file_size[F_SIZE];
 	char temp[50];
-	int nfiles, filesize;
+	int nfiles;
+    long filesize;
 	int n_sent;
 	strcpy(msg, "RLS ");
     nfiles = Number_of_files(dirname);
@@ -187,7 +209,7 @@ int ListDir(char *dirname, int fd) {
     d = opendir(dirname);
     if (d) {
         while (dir = readdir(d)) {
-            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..")) {
+            if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, "..") || !strncmp(dir->d_name, ".", 1)) {
                 // do nothing
             }
             else{
@@ -197,7 +219,7 @@ int ListDir(char *dirname, int fd) {
             	filesize = checkSizeFile(temp);
             	strcat(msg, dir->d_name);
             	strcat(msg, " ");
-            	sprintf(file_size, "%d", filesize);
+            	sprintf(file_size, "%ld", filesize);
             	strcat(msg, file_size);
                 if(n_atual < nfiles)
             	   strcat(msg, " ");
@@ -236,6 +258,7 @@ int main(int argc, char *argv[]) {
     char ipAS[18] = IP_AS_DEFAULT;
     int user_atual, ERR, num_tokens;
     int bytes_data;
+    int n_files;
     char DIR_PATH[40] = DIR_PATH_INIT;
     DIR *d;
     FILE *fp;
@@ -354,7 +377,6 @@ int main(int argc, char *argv[]) {
             perror(" ERROR");
             exit(1);
         }
-        printf("select%d\n", retval);
         for (int i = 0; i <= maxfd; i++) {
             memset(temp, 0, sizeof(temp));
             memset(tcp_buffer, 0, sizeof(tcp_buffer));
@@ -541,23 +563,43 @@ int main(int argc, char *argv[]) {
                     if (ERR > 0) {
                         //APAGA O FICHEIRO TEMPORARIO CRIADO NO FS E A DIRECTORIA DO UID SE FOI O PRIMEIRO FICHEIRO
                         if (strcmp(TCP_FDS[user_atual].op, "U") == 0) {
-                            strcat(DIR_PATH, "/");
-                            strcat(DIR_PATH, TCP_FDS[user_atual].filename);
-                            strcat(DIR_PATH, "_TMP");
-                            if (remove(DIR_PATH) == 0)
-                                printf("FILE DELETED\n");
-                            else
-                                printf("Unable to delete file\n");
                             strcpy(DIR_PATH, DIR_PATH_INIT);
                             strcat(DIR_PATH, TCP_FDS[user_atual].uid);
+                            strcpy(temp, DIR_PATH);
                             strcat(DIR_PATH, "_TMP");
+                            printf("%s\n", DIR_PATH);
                             d = opendir(DIR_PATH);
-                            //EXISTE, LOGO APAGAMOS
                             if (d) {
+                                strcat(DIR_PATH, "/");
+                                strcat(DIR_PATH, TCP_FDS[user_atual].filename);
+                                strcat(DIR_PATH, "_TMP");
+                                printf("%s\n", DIR_PATH);
                                 if (remove(DIR_PATH) == 0)
-                                    printf("DIRECTORY DELETED\n");
+                                    printf("TMP FILE DELETED\n");
                                 else
-                                    printf("Unable to delete directory\n");
+                                    printf("Unable to delete tmp file\n");
+                                strcpy(DIR_PATH, temp);
+                                strcat(DIR_PATH, "_TMP");
+                                if (remove(DIR_PATH) == 0)
+                                    printf("TMP DIRECTORY DELETED\n");
+                                else
+                                    printf("Unable to delete tmp directory\n");
+                            }
+                            //nao existe directory tmp
+                            else if (errno == ENOENT){
+                                strcpy(DIR_PATH, temp);
+                                strcat(DIR_PATH, "/");
+                                strcat(DIR_PATH, TCP_FDS[user_atual].filename);
+                                strcat(DIR_PATH, "_TMP");
+                                if (remove(DIR_PATH) == 0)
+                                    printf("TMP FILE DELETED\n");
+                                else
+                                    printf("Unable to delete tmp file\n");
+                            }
+                            else{
+                                printf("opendir failed\n");
+                                printf("ERROR %d\n", errno);
+                                exit(1);
                             }
                             closedir(d);
                         }
@@ -580,6 +622,7 @@ int main(int argc, char *argv[]) {
                             }
                         }
                    	}
+                    TCP_FDS[user_atual].used = 1;
                     AS_waiting_answer--;
                     if (AS_waiting_answer == 0)
                         FD_CLR(udp_fd, &active_fd_set);
@@ -611,7 +654,7 @@ int main(int argc, char *argv[]) {
                     else{
                     	if (verbose_mode){
                     	printf("IP: %s Port: %d\nMensagem recebida do user\n", ipUser, portUser);
-                    }
+                        }
                     }
                     if ((strcmp(op, "LST") == 0)) {
                         //Mensagem possivel logo para o User
@@ -638,6 +681,7 @@ int main(int argc, char *argv[]) {
                             strcpy(temp, DIR_PATH);
                             strcat(temp, "/");
                             strcat(temp, FileName);
+                            fp = fopen(temp, "r");
                             // 'ENOENT' significa que directoria nao existe -> NOK
                             if (errno == ENOENT) {
                                 printf("Directory does not exist\n");
@@ -649,7 +693,7 @@ int main(int argc, char *argv[]) {
                                 ERR = DIR_ERR;
                             }
                             // Ficheiro nao existe -> EOF
-                            else if ((fp = fopen(temp, "r")) == NULL) {
+                            else if (fp == NULL) {
                                 printf("Ficheiro nao existe na directoria do UID %s\n", UID);
                                 ERR = FILE_ERR;
                             }
@@ -657,6 +701,8 @@ int main(int argc, char *argv[]) {
                             else{
                                 setFD_TCP(UID, TID, "D", reply_msg, FileName, i);
                             }
+                            if(fp != NULL)
+                                fclose(fp);
                             closedir(d);
                         } else{
                             ERR = REQ_ERR;
@@ -684,9 +730,10 @@ int main(int argc, char *argv[]) {
                             // Agora vai verificar se o UID tem conteudos no FS
                             strcat(DIR_PATH, UID);
                             strcpy(temp, DIR_PATH);
+                            d = opendir(DIR_PATH);
                             strcat(DIR_PATH, "/");
                             strcat(DIR_PATH, FileName);
-                            d = opendir(DIR_PATH);
+                            fp = fopen(DIR_PATH, "r");
                             // 'ENOENT' significa que directoria nao existe -> NOK
                             if (errno == ENOENT) {
                                 printf("Directory does not exist\n");
@@ -698,12 +745,14 @@ int main(int argc, char *argv[]) {
                                 ERR = DIR_ERR;
                             }
                             // Ficheiro nao existe -> EOF
-                            else if ((fp = fopen(DIR_PATH, "r")) == NULL) {
+                            else if (fp == NULL) {
                                 printf("Ficheiro nao existe na directoria do UID %s\n", UID);
                                 ERR = FILE_ERR;
                             } else{
                                 setFD_TCP(UID, TID, "R", reply_msg, FileName, i);
                             }
+                            if (fp != NULL)
+                                fclose(fp);
                             closedir(d);
                         } else
                             ERR = REQ_ERR;
@@ -715,26 +764,28 @@ int main(int argc, char *argv[]) {
                             strcat(DIR_PATH, UID);
                             d = opendir(DIR_PATH);
                             if (d) {
-                                int n_files = Number_of_files(DIR_PATH);
+                                n_files = Number_of_files(DIR_PATH);
+                                printf("%d\n", n_files);
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
+                                fp = fopen(DIR_PATH, "r");
                                 //significa que ja existe
-                                if ((fp = fopen(DIR_PATH, "r")) != NULL) {
+                                if (fp != NULL) {
                                     printf("Ficheiro ja existe\n");
                                     ERR = DUP_ERR;
-                                    //SO FAZ READ MAS NAO GUARDA EM LADO NENHUM
-                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                     fclose(fp);
+                                    //SO FAZ READ MAS NAO GUARDA EM LADO NENHUM
+                                    recv_file(i, DIR_PATH, atol(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                 } else if (n_files == 15) {
                                     printf("User ja tem 15 files. Nao pode fazer upload\n");
                                     ERR = FULL_ERR;
                                     // FAZ READ MAS NAO GUARDA EM LADO NENHUM
-                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
+                                    recv_file(i, DIR_PATH, atol(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                 }
                                 //cria file temporario
                                 else {
                                     strcat(DIR_PATH, "_TMP");
-                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
+                                    recv_file(i, DIR_PATH, atol(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
                                 }
                             } else if (errno == ENOENT) {
                                 //cria directory temp e file temp
@@ -751,7 +802,7 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 strcat(DIR_PATH, "_TMP");
-                                recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
+                                recv_file(i, DIR_PATH, atol(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
                             }
                             closedir(d);
                             setFD_TCP(UID, TID, "U", reply_msg, FileName, i);
@@ -779,6 +830,7 @@ int main(int argc, char *argv[]) {
                         else if (ERR == FULL_ERR)
                             strcat(reply_msg, " FULL\n");
                         n = write_buf_SIGPIPE(i, reply_msg, strlen(reply_msg));
+                        TCP_FDS[user_atual].used = 1;
                         if (n == -1) {
                             //Conexao ja estava terminada
                             printf("User connection closed(sigpipe).\n");
