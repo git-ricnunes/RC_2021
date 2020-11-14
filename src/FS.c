@@ -165,6 +165,7 @@ int RetrieveFile(char *filename, int fd){
 	if (n_sent == -1)
 		return n_sent;
 	send_file(fd, filename, SP_CHECK);
+    return 0;
 }
 
 // Directory Listing function
