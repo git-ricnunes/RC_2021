@@ -172,15 +172,16 @@ int RetrieveFile(char *filename, int fd){
 int ListDir(char *dirname, int fd) {
 	char msg[100] = "";
     DIR *d;
+    int n_atual = 0;
     struct dirent *dir;
-	char n_files[2];
+	char n_files[4];
 	char file_size[F_SIZE];
 	char temp[50];
 	int nfiles, filesize;
 	int n_sent;
 	strcpy(msg, "RLS ");
     nfiles = Number_of_files(dirname);
-    sprintf(n_files, "%d", nfiles);
+    sprintf(n_files, "%d ", nfiles);
     strcat(msg, n_files);
     strcpy(temp, dirname);
     d = opendir(dirname);
@@ -190,6 +191,7 @@ int ListDir(char *dirname, int fd) {
                 // do nothing
             }
             else{
+                n_atual++;
             	strcat(temp, "/");
             	strcat(temp, dir->d_name);
             	filesize = checkSizeFile(temp);
@@ -197,7 +199,8 @@ int ListDir(char *dirname, int fd) {
             	strcat(msg, " ");
             	sprintf(file_size, "%d", filesize);
             	strcat(msg, file_size);
-            	strcat(msg, " ");
+                if(n_atual < nfiles)
+            	   strcat(msg, " ");
             	n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
             	if (n_sent == -1)
 					return n_sent;
@@ -351,7 +354,7 @@ int main(int argc, char *argv[]) {
             perror(" ERROR");
             exit(1);
         }
-        printf("%d\n", retval);
+        printf("select%d\n", retval);
         for (int i = 0; i <= maxfd; i++) {
             memset(temp, 0, sizeof(temp));
             memset(tcp_buffer, 0, sizeof(tcp_buffer));
@@ -387,7 +390,6 @@ int main(int argc, char *argv[]) {
                         maxfd = newfd_tcp;
                     retval--;
                 } else if (i == udp_fd) {
-                	printf("MENSAGEM RECEBIDA AS %d\n", i);
                     addrlen_udp = sizeof(addr_udp);
                     //recebe mensagem do AS
                     n_udp = recvfrom(udp_fd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr_udp, &addrlen_udp);
@@ -405,7 +407,6 @@ int main(int argc, char *argv[]) {
                     user_atual = getFD_TCP(UID, TID);
 
                     strcat(DIR_PATH, TCP_FDS[user_atual].uid);
-                    //LIST
                     if (strcmp(op, "E") == 0)
                         ERR = AS_ERR;
                     else if (strcmp(CNF, "CNF") != 0){
@@ -587,13 +588,10 @@ int main(int argc, char *argv[]) {
                 }
                 // recebe mensagem de user
                 else {
-                	printf("MENSAGEM RECEBIDA USER %d\n", i);
                     memset(reply_msg, 0, sizeof(reply_msg));
                     n = read_buf(i, tcp_buffer, sizeof(tcp_buffer), MAX_BYTES, NULL_IGNORE);
-                    printf("%s\n", tcp_buffer);
                     foo(i);
                     sscanf(tcp_buffer, "%s %s %s %s %s", op, UID, TID, FileName, FileSize);
-                    printf("%s\n", op);
                     //Mensagem possivel para o AS - pode nao chegar a ser mandada se houver algum problema com o pedido
                     strcat(msg, "VLD ");
                     strcat(msg, UID);
@@ -724,20 +722,19 @@ int main(int argc, char *argv[]) {
                                 if ((fp = fopen(DIR_PATH, "r")) != NULL) {
                                     printf("Ficheiro ja existe\n");
                                     ERR = DUP_ERR;
-                                    //LER O FICHEIRO PRIMEIRO
+                                    //SO FAZ READ MAS NAO GUARDA EM LADO NENHUM
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                     fclose(fp);
                                 } else if (n_files == 15) {
                                     printf("User ja tem 15 files. Nao pode fazer upload\n");
                                     ERR = FULL_ERR;
-                                    //LER O FICHEIRO PRIMEIRO
+                                    // FAZ READ MAS NAO GUARDA EM LADO NENHUM
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                 }
                                 //cria file temporario
                                 else {
                                     strcat(DIR_PATH, "_TMP");
-                                    printf("%s\n", tcp_buffer + bytes_data);
-                                    printf("%d\n", bytes_data);
-                                    printf("%ld\n", n);
-                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
                                 }
                             } else if (errno == ENOENT) {
                                 //cria directory temp e file temp
@@ -754,7 +751,7 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 strcat(DIR_PATH, "_TMP");
-                                recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
+                                recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
                             }
                             closedir(d);
                             setFD_TCP(UID, TID, "U", reply_msg, FileName, i);

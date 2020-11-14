@@ -9,11 +9,13 @@
 
 #define SP_CHECK 1
 #define SP_IGNORE 0
+#define F_EXISTS 1
+#define F_NEXISTS 0
 #define DATA_SIZE 1024
 
 char data[DATA_SIZE];
 
 void send_file(int fd, char* fname, int sp);
-void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_data_size);
+void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_data_size, int dup);
 
 #endif
