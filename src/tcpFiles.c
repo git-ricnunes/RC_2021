@@ -82,8 +82,9 @@ void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_d
 	int n_sum = 0;
 	int n_read = initial_data_size;
 	int n_wrtn;
-	if(!dup){
-		FILE * fp = fopen(fname, "a");
+	FILE *fp;
+	if(dup == F_NEXISTS){
+		fp = fopen(fname, "a");
 		if (!fp){
 			fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
 			fprintf(stderr, "Error code: %d\n", errno);
@@ -94,11 +95,11 @@ void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_d
 	/* Write initial data */
 	if (initial_data_size > fsize)
 		n_read = fsize; /* Ignorar '\n' */
-	if (!dup)
+	if (dup == F_NEXISTS)
 		n_wrtn = fwrite(initial_data, 1, n_read, fp);
 
 	while(1){
-		if (!dup){
+		if (dup == F_NEXISTS){
 			if (n_wrtn == -1) { /* Err */
             	fprintf(stderr, "Error: failed to write data to file\n");
             	fprintf(stderr, "Error code: %d\n", errno);
@@ -107,7 +108,7 @@ void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_d
         }
         n_sum += n_read;
 		if (n_sum >= fsize){
-			if(!dup)
+			if(dup == F_NEXISTS)
 				fclose(fp);
 			return;
 		}
@@ -122,7 +123,7 @@ void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_d
         /* Write read data */
         if (n_sum + n_read >= fsize)
         	n_read = fsize - n_sum; /* Ignorar '\n' */
-        if(!dup)
+        if(dup == F_NEXISTS)
         	n_wrtn = fwrite(data, 1, n_read, fp);
 	}
 }
