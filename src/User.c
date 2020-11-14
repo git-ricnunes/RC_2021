@@ -250,7 +250,7 @@ int main(int argc, char *argv[]){
 				continue;
 			}
 			if (!strcmp(tid, "0")){
-				printf("Invalid TID: request a new file operation");
+				printf("Invalid TID: please request a file operation\n");
 				continue;
 			}
 			sprintf(code, "LST");
