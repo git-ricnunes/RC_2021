@@ -216,7 +216,7 @@ void processSIGPIPE(int tcpAcceptFd, int fdId, int flagVerboseMode) {
     tcpFdNumUsers--;
 
     if (flagVerboseMode)
-        printf("User connection closed.\n");
+        printf("User connection closed.\n\n");
 }
 
 /**
@@ -590,10 +590,14 @@ int main(int argc, char *argv[]) {
                         char arg3[100] = "";
                         char status[10] = "";
                         int uindex = 0;
+                        int readBytes;
 
-                        n = read_buf_AS(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer));
+                        n = read_buf(tcp_accept_fd, tcp_buffer, sizeof(tcp_buffer), sizeof(tcp_buffer), NULL_CHECK);
 
-                        verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
+                        readBytes = n;
+
+                        if (readBytes > 0)
+                            verboseLogger(verboseMode, tcp_buffer, "I", "Y", "TCP");
 
                         sscanf(tcp_buffer, "%s %s %s %s %s", op, user, arg1, arg2, arg3);
 
@@ -751,12 +755,12 @@ int main(int argc, char *argv[]) {
 
                         // Envia mensagem para o User
 
-                        n = write_buf_SIGPIPE(tcp_accept_fd, tcp_msg);
+                        n = write_buf_SIGPIPE(tcp_accept_fd, tcp_msg, strlen(tcp_msg));
 
                         if (n == -1) {
                             // Em caso de erro processa o SIGPIPE
                             processSIGPIPE(tcp_accept_fd, fd_id, verboseMode);
-                        } else {
+                        } else if (readBytes > 0) {
                             verboseLogger(verboseMode, tcp_msg, "O", "Y", "TCP");
                             structChecker(verboseMode, arr_user);
                         }
