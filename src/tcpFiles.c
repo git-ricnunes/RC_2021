@@ -78,32 +78,37 @@ void send_file(int fd, char* fname, int sp){
 	}
 }
 
-void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_data_size){
+void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_data_size, int dup){
 	int n_sum = 0;
 	int n_read = initial_data_size;
 	int n_wrtn;
-
-	FILE * fp = fopen(fname, "a");
-	if (!fp){
-		fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
-		fprintf(stderr, "Error code: %d\n", errno);
-		exit(1);
+	if(!dup){
+		FILE * fp = fopen(fname, "a");
+		if (!fp){
+			fprintf(stderr, "Error: failed to open file ""%s""\n", fname);
+			fprintf(stderr, "Error code: %d\n", errno);
+			exit(1);
+		}
 	}
 
 	/* Write initial data */
 	if (initial_data_size > fsize)
 		n_read = fsize; /* Ignorar '\n' */
-	n_wrtn = fwrite(initial_data, 1, n_read, fp);
+	if (!dup)
+		n_wrtn = fwrite(initial_data, 1, n_read, fp);
 
 	while(1){
-		if (n_wrtn == -1) { /* Err */
-            fprintf(stderr, "Error: failed to write data to file\n");
-            fprintf(stderr, "Error code: %d\n", errno);
-            exit(1);
+		if (!dup){
+			if (n_wrtn == -1) { /* Err */
+            	fprintf(stderr, "Error: failed to write data to file\n");
+            	fprintf(stderr, "Error code: %d\n", errno);
+            	exit(1);
+        	}
         }
         n_sum += n_read;
 		if (n_sum >= fsize){
-			fclose(fp);
+			if(!dup)
+				fclose(fp);
 			return;
 		}
 		memset(data, 0, DATA_SIZE);
@@ -117,6 +122,7 @@ void recv_file(int fd, char* fname, int fsize, char* initial_data, int initial_d
         /* Write read data */
         if (n_sum + n_read >= fsize)
         	n_read = fsize - n_sum; /* Ignorar '\n' */
-        n_wrtn = fwrite(data, 1, n_read, fp);
+        if(!dup)
+        	n_wrtn = fwrite(data, 1, n_read, fp);
 	}
 }

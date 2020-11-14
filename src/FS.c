@@ -724,12 +724,12 @@ int main(int argc, char *argv[]) {
                                 if ((fp = fopen(DIR_PATH, "r")) != NULL) {
                                     printf("Ficheiro ja existe\n");
                                     ERR = DUP_ERR;
-                                    //LER O FICHEIRO PRIMEIRO
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                     fclose(fp);
                                 } else if (n_files == 15) {
                                     printf("User ja tem 15 files. Nao pode fazer upload\n");
                                     ERR = FULL_ERR;
-                                    //LER O FICHEIRO PRIMEIRO
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_EXISTS);
                                 }
                                 //cria file temporario
                                 else {
@@ -737,7 +737,7 @@ int main(int argc, char *argv[]) {
                                     printf("%s\n", tcp_buffer + bytes_data);
                                     printf("%d\n", bytes_data);
                                     printf("%ld\n", n);
-                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
+                                    recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
                                 }
                             } else if (errno == ENOENT) {
                                 //cria directory temp e file temp
@@ -754,7 +754,7 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "/");
                                 strcat(DIR_PATH, FileName);
                                 strcat(DIR_PATH, "_TMP");
-                                recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
+                                recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data, F_NEXISTS);
                             }
                             closedir(d);
                             setFD_TCP(UID, TID, "U", reply_msg, FileName, i);
