@@ -264,7 +264,7 @@ int main(int argc, char *argv[]){
 				continue;
 			}
 			if (!strcmp(tid, "0")){
-				printf("Invalid TID: request a new file operation");
+				printf("Invalid TID: please request a file operation\n");
 				continue;
 			}
 			sprintf(code, "RTV");
@@ -289,7 +289,7 @@ int main(int argc, char *argv[]){
 				continue;
 			}
 			if (!strcmp(tid, "0")){
-				printf("Invalid TID: request a new file operation");
+				printf("Invalid TID: please request a file operation\n");
 				continue;
 			}
 			sprintf(code, "UPL");
@@ -327,7 +327,7 @@ int main(int argc, char *argv[]){
 				continue;
 			}
 			if (!strcmp(tid, "0")){
-				printf("Invalid TID: request a new file operation");
+				printf("Invalid TID: please request a file operation\n");
 				continue;
 			}
 			sprintf(code, "DEL");
@@ -346,7 +346,7 @@ int main(int argc, char *argv[]){
 				continue;
 			}
 			if (!strcmp(tid, "0")){
-				printf("Invalid TID: request a new file operation");
+				printf("Invalid TID: please request a file operation\n");
 				continue;
 			}
 			sprintf(code, "REM");
