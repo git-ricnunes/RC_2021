@@ -62,6 +62,7 @@ void unexpected_protocol_FS(){
 void list_files(char * fbuf, int n){
 
 	char lbuf[n+1];
+	memset(lbuf, 0, n+1);
 	strncpy(lbuf, fbuf, n);
 
 	int num_files = 0;
@@ -75,12 +76,12 @@ void list_files(char * fbuf, int n){
 	if (num_files%2 != 0)
 		unexpected_protocol_FS();
 
-	printf("N - \tFname\tFsize\n");
+	printf("N\tFname\t\t\tFsize (bytes)\n");
 	for (int i = 0; i < num_files; i+=2){
 		if (strlen(file_list[i]) >= FNAME_SIZE || strlen(file_list[i+1]) >= FSIZE_SIZE)
 			unexpected_protocol_FS();
 		else
-			printf("%d - \t%s\t%s bytes\n", i/2 + 1, file_list[i], file_list[i+1]);
+			printf("%d\t\t\t%s\t%s\n", i/2 + 1, file_list[i], file_list[i+1]);
 	}
 }
 
@@ -167,11 +168,13 @@ int main(int argc, char *argv[]){
 
 	while(1){
 
+		memset(cwd, 0, CWD_SIZE);
 		memset(buffer, 0, BUFFER_SIZE);
-		memset(msg, 0, BUFFER_SIZE);
-		memset(code, 0, CODE_SIZE);
-		memset(fname, 0, FNAME_SIZE);
 		memset(fbuffer, 0, FBUFFER_SIZE);
+		memset(msg, 0, BUFFER_SIZE);
+		memset(fname, 0, FNAME_SIZE);
+		memset(sfsize, 0, FSIZE_SIZE);
+		memset(code, 0, CODE_SIZE);
 		memset(rcode, 0, CODE_SIZE);
 		memset(status, 0, STATUS_SIZE);
 
@@ -246,6 +249,10 @@ int main(int argc, char *argv[]){
 				//printf("Login command: login UID pass\n");
 				continue;
 			}
+			if (!strcmp(tid, "0")){
+				printf("Invalid TID: request a new file operation");
+				continue;
+			}
 			sprintf(code, "LST");
 			sprintf(msg, "%s %s %s\n", code, uid, tid);
 			fd = FS_FD_SET;
@@ -254,6 +261,10 @@ int main(int argc, char *argv[]){
 			if (session == LOGGED_OUT){
 				printf("Invalid command: please log in before attempting another command\n");
 				//printf("Login command: login UID pass\n");
+				continue;
+			}
+			if (!strcmp(tid, "0")){
+				printf("Invalid TID: request a new file operation");
 				continue;
 			}
 			sprintf(code, "RTV");
@@ -275,6 +286,10 @@ int main(int argc, char *argv[]){
 			if (session == LOGGED_OUT){
 				printf("Invalid command: please log in before attempting another command\n");
 				//printf("Login command: login UID pass\n");
+				continue;
+			}
+			if (!strcmp(tid, "0")){
+				printf("Invalid TID: request a new file operation");
 				continue;
 			}
 			sprintf(code, "UPL");
@@ -311,6 +326,10 @@ int main(int argc, char *argv[]){
 				//printf("Login command: login UID pass\n");
 				continue;
 			}
+			if (!strcmp(tid, "0")){
+				printf("Invalid TID: request a new file operation");
+				continue;
+			}
 			sprintf(code, "DEL");
 			if (strlen(token_list[1]) >= FNAME_SIZE){
 				printf("Invalid file name: %s\n", token_list[2]);
@@ -324,6 +343,10 @@ int main(int argc, char *argv[]){
 			if (session == LOGGED_OUT){
 				printf("Invalid command: please log in before attempting another command\n");
 				//printf("Login command: login UID pass\n");
+				continue;
+			}
+			if (!strcmp(tid, "0")){
+				printf("Invalid TID: request a new file operation");
 				continue;
 			}
 			sprintf(code, "REM");
@@ -487,6 +510,9 @@ int main(int argc, char *argv[]){
 					exit(0);
 				}
 			}
+
+			memset(tid, 0, TID_SIZE);
+			sprintf(tid, "0");
 
 			freeaddrinfo(resFS);
 			close(fdFS);
