@@ -161,7 +161,7 @@ int RetrieveFile(char *filename, int fd){
 	char msg[10] = "";
 	int n_sent;
 	strcpy(msg, "RRT OK ");
-	n_sent = write_buf_SIGPIPE(fd, msg);
+	n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
 	if (n_sent == -1)
 		return n_sent;
 	send_file(fd, filename, SP_CHECK);
@@ -197,7 +197,7 @@ int ListDir(char *dirname, int fd) {
             	sprintf(file_size, "%d", filesize);
             	strcat(msg, file_size);
             	strcat(msg, " ");
-            	n_sent = write_buf_SIGPIPE(fd, msg);
+            	n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
             	if (n_sent == -1)
 					return n_sent;
             	memset(msg, 0, sizeof(msg));
@@ -205,7 +205,10 @@ int ListDir(char *dirname, int fd) {
             }    
         }
         sprintf(msg, "\n");
-        n_sent = write_buf_SIGPIPE(fd, msg);
+        n_sent = write_buf_SIGPIPE(fd, msg, strlen(msg));
+        if (verbose_mode){
+            printf("Message sent to User\n");
+        }
     } 
     else if (errno == ENOENT) {
         printf("Directory does not exist\n");
@@ -424,12 +427,16 @@ int main(int argc, char *argv[]) {
                         else {
                         	strcat(DIR_PATH, "/");
                         	strcat(DIR_PATH, FileName);
-                        	printf("RetrieveFile\n");
                         	n = RetrieveFile(DIR_PATH, TCP_FDS[user_atual].fd_tcp);
                         	if (n == -1) {
                        			//Conexao ja estava terminada
                        			printf("User connection closed(sigpipe).\n");
                    			}
+                            else{
+                                if (verbose_mode){
+                                    printf("Message sent to User\n");
+                                }
+                            }
                         }
                     }
                     else if ((strcmp(op, "U") == 0) && (num_tokens == 5)) {
@@ -457,6 +464,9 @@ int main(int argc, char *argv[]) {
                                 strcat(temp, TCP_FDS[user_atual].filename);
                                 if (rename(DIR_PATH, temp) == 0){
                                     printf("RENAMED file\n");
+                                    if (verbose_mode){
+                                        printf("Ficheiro %s guardado na pasta USERS/%s\n", TCP_FDS[user_atual].filename, TCP_FDS[user_atual].uid);
+                                    }
                                 }
                                 else{
                                     printf("Unable to rename file\n");
@@ -473,8 +483,12 @@ int main(int argc, char *argv[]) {
                                 strcat(DIR_PATH, "_TMP");
                                 strcat(temp, "/");
                                 strcat(temp, TCP_FDS[user_atual].filename);
-                                if (rename(DIR_PATH, temp) == 0)
+                                if (rename(DIR_PATH, temp) == 0){
                                     printf("RENAMED file\n");
+                                    if (verbose_mode){
+                                        printf("Ficheiro %s guardado na pasta USERS/%s\n", TCP_FDS[user_atual].filename, TCP_FDS[user_atual].uid);
+                                    }
+                                }
                                 else{
                                     printf("Unable to rename file\n");
                                     printf("Error: %d\n", errno);
@@ -508,12 +522,16 @@ int main(int argc, char *argv[]) {
                             }
                             strcpy(msg, TCP_FDS[user_atual].reply);
                             strcat(msg, " OK\n");
+                            if(verbose_mode)
+                                printf("Ficheiro %s apagado\n", TCP_FDS[user_atual].filename);
                         }
                     } else if ((strcmp(op, "X") == 0) && (num_tokens == 4)) {
                         //Apaga a informacao do utilizador no AS e depois remove todos os ficheiros e pastas do utilizador no FS
                         DeleteDirectory(DIR_PATH);
                         strcpy(msg, TCP_FDS[user_atual].reply);
                         strcat(msg, " OK\n");
+                        if(verbose_mode)
+                            printf("Ficheiros e pasta do User %s apagados\n", TCP_FDS[user_atual].uid);
                     }
                     //UNEXPECTED ERROR
                     else
@@ -549,11 +567,16 @@ int main(int argc, char *argv[]) {
                         }
                     }
                     if ((ERR > 0) || ((strcmp(op, "L") != 0) && (strcmp(op, "R") != 0))){
-                    	n = write_buf_SIGPIPE(TCP_FDS[user_atual].fd_tcp, msg);
+                    	n = write_buf_SIGPIPE(TCP_FDS[user_atual].fd_tcp, msg, strlen(msg));
                    		if (n == -1) {
                        		//Conexao ja estava terminada
                        		printf("User connection closed(sigpipe).\n");
                    		}
+                        else{
+                            if (verbose_mode){
+                                printf("Message sent to User\n");
+                            }
+                        }
                    	}
                     AS_waiting_answer--;
                     if (AS_waiting_answer == 0)
@@ -566,11 +589,10 @@ int main(int argc, char *argv[]) {
                 	printf("MENSAGEM RECEBIDA USER %d\n", i);
                     memset(reply_msg, 0, sizeof(reply_msg));
                     n = read_buf_LIMIT(i, tcp_buffer, sizeof(tcp_buffer), MAX_BYTES);
+                    printf("%s\n", tcp_buffer);
                     foo(i);
-                    if (verbose_mode){
-                    	printf("IP: %s Port: %d\nMessage received from User:\n%s", ipUser, portUser, tcp_buffer);
-                    }
                     sscanf(tcp_buffer, "%s %s %s %s %s", op, UID, TID, FileName, FileSize);
+                    printf("%s\n", op);
                     //Mensagem possivel para o AS - pode nao chegar a ser mandada se houver algum problema com o pedido
                     strcat(msg, "VLD ");
                     strcat(msg, UID);
@@ -578,11 +600,19 @@ int main(int argc, char *argv[]) {
                     strcat(msg, TID);
                     strcat(msg, "\n");
                     if (strcmp(op, "UPL") != 0){
+                    	if (verbose_mode){
+                    		printf("IP: %s Port: %d\nMessage received from User:\n%s", ipUser, portUser, tcp_buffer);
+                    	}
                     	token = strtok(tcp_buffer, " ");
                     	while (token != NULL) {
                         	num_tokens++;
                         	token = strtok(NULL, " ");
                     	}
+                    }
+                    else{
+                    	if (verbose_mode){
+                    	printf("IP: %s Port: %d\nMensagem recebida do user\n", ipUser, portUser);
+                    }
                     }
                     if ((strcmp(op, "LST") == 0)) {
                         //Mensagem possivel logo para o User
@@ -693,14 +723,19 @@ int main(int argc, char *argv[]) {
                                 if ((fp = fopen(DIR_PATH, "r")) != NULL) {
                                     printf("Ficheiro ja existe\n");
                                     ERR = DUP_ERR;
+                                    //LER O FICHEIRO PRIMEIRO
                                     fclose(fp);
                                 } else if (n_files == 15) {
                                     printf("User ja tem 15 files. Nao pode fazer upload\n");
                                     ERR = FULL_ERR;
+                                    //LER O FICHEIRO PRIMEIRO
                                 }
                                 //cria file temporario
                                 else {
                                     strcat(DIR_PATH, "_TMP");
+                                    printf("%s\n", tcp_buffer + bytes_data);
+                                    printf("%d\n", bytes_data);
+                                    printf("%ld\n", n);
                                     recv_file(i, DIR_PATH, atoi(FileSize), tcp_buffer + bytes_data, n - bytes_data);
                                 }
                             } else if (errno == ENOENT) {
@@ -745,10 +780,15 @@ int main(int argc, char *argv[]) {
                             strcat(reply_msg, " DUP\n");
                         else if (ERR == FULL_ERR)
                             strcat(reply_msg, " FULL\n");
-                        n = write_buf_SIGPIPE(i, reply_msg);
+                        n = write_buf_SIGPIPE(i, reply_msg, strlen(reply_msg));
                         if (n == -1) {
                             //Conexao ja estava terminada
                             printf("User connection closed(sigpipe).\n");
+                        }
+                        else{
+                            if (verbose_mode){
+                                printf("Message sent to User\n");
+                            }
                         }
                         retval--;
                         close(i);
